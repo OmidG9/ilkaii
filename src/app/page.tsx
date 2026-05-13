@@ -29,18 +29,18 @@ export default function Home() {
           <div className="max-w-2xl mx-auto text-center space-y-6">
             <div className="space-y-3">
               <h2 className="text-4xl sm:text-5xl font-serif font-bold">
-                Stay Updated
+                در جریان بمانید
               </h2>
               <p className="text-lg text-white/80">
-                Subscribe to our newsletter for exclusive offers and early
-                access to new collections.
+                با عضویت در خبرنامه از پیشنهادهای ویژه و دسترسی زودهنگام به
+                مجموعه‌های جدید مطلع شوید.
               </p>
             </div>
 
             <form className="flex flex-col sm:flex-row gap-3 mt-8">
               <input
                 type="email"
-                placeholder="Enter your email"
+                placeholder="ایمیل خود را وارد کنید"
                 required
                 className="flex-1 px-4 py-3.5 rounded-lg bg-white text-luxury-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-white text-base"
               />
@@ -48,12 +48,12 @@ export default function Home() {
                 type="submit"
                 className="px-8 py-3.5 rounded-lg bg-white text-luxury-primary font-semibold hover:bg-luxury-background transition-colors duration-200 touch-target whitespace-nowrap active:scale-95 min-w-max"
               >
-                Subscribe
+                عضویت
               </button>
             </form>
 
             <p className="text-sm text-white/60">
-              We respect your privacy. Unsubscribe anytime.
+              حریم خصوصی شما برای ما مهم است. هر زمان می‌توانید لغو اشتراک کنید.
             </p>
           </div>
         </div>
@@ -69,20 +69,20 @@ export default function Home() {
                 ilkaii
               </h3>
               <p className="text-luxury-text/70 text-sm">
-                Luxury women's clothing with premium quality and timeless style.
+                پوشاک لوکس زنانه با کیفیت برتر و سبک جاودانه.
               </p>
             </div>
 
             {/* Shop */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-luxury-text">Shop</h4>
+              <h4 className="font-semibold text-luxury-text">فروشگاه</h4>
               <ul className="space-y-2 text-sm text-luxury-text/70">
                 <li>
                   <a
                     href="/shop"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    All Products
+                    همه محصولات
                   </a>
                 </li>
                 <li>
@@ -90,7 +90,7 @@ export default function Home() {
                     href="/shop/new"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    New Arrivals
+                    تازه‌ترین‌ها
                   </a>
                 </li>
                 <li>
@@ -98,7 +98,7 @@ export default function Home() {
                     href="/shop/sale"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Sale
+                    حراج
                   </a>
                 </li>
                 <li>
@@ -106,7 +106,7 @@ export default function Home() {
                     href="/collections"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Collections
+                    مجموعه‌ها
                   </a>
                 </li>
               </ul>
@@ -114,14 +114,14 @@ export default function Home() {
 
             {/* Company */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-luxury-text">Company</h4>
+              <h4 className="font-semibold text-luxury-text">درباره</h4>
               <ul className="space-y-2 text-sm text-luxury-text/70">
                 <li>
                   <a
                     href="/about"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    About Us
+                    درباره ما
                   </a>
                 </li>
                 <li>
@@ -129,7 +129,7 @@ export default function Home() {
                     href="/blog"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Blog
+                    بلاگ
                   </a>
                 </li>
                 <li>
@@ -137,7 +137,7 @@ export default function Home() {
                     href="/contact"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Contact
+                    تماس
                   </a>
                 </li>
                 <li>
@@ -145,7 +145,7 @@ export default function Home() {
                     href="/careers"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Careers
+                    فرصت‌های شغلی
                   </a>
                 </li>
               </ul>
@@ -153,14 +153,14 @@ export default function Home() {
 
             {/* Support */}
             <div className="space-y-4">
-              <h4 className="font-semibold text-luxury-text">Support</h4>
+              <h4 className="font-semibold text-luxury-text">پشتیبانی</h4>
               <ul className="space-y-2 text-sm text-luxury-text/70">
                 <li>
                   <a
                     href="/faq"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    FAQ
+                    سوالات متداول
                   </a>
                 </li>
                 <li>
@@ -168,7 +168,7 @@ export default function Home() {
                     href="/shipping"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Shipping
+                    ارسال
                   </a>
                 </li>
                 <li>
@@ -176,7 +176,7 @@ export default function Home() {
                     href="/returns"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Returns
+                    بازگشت کالا
                   </a>
                 </li>
                 <li>
@@ -184,7 +184,7 @@ export default function Home() {
                     href="/privacy"
                     className="hover:text-luxury-primary transition-colors"
                   >
-                    Privacy Policy
+                    سیاست حفظ حریم خصوصی
                   </a>
                 </li>
               </ul>
@@ -193,25 +193,25 @@ export default function Home() {
 
           {/* Bottom Footer */}
           <div className="border-t border-luxury-border pt-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm text-luxury-text/60">
-            <p>&copy; 2024 ilkaii. All rights reserved.</p>
+            <p>© ۲۰۲۴ ilkaii. تمامی حقوق محفوظ است.</p>
             <div className="flex gap-6">
               <a
                 href="#"
                 className="hover:text-luxury-primary transition-colors"
               >
-                Instagram
+                اینستاگرام
               </a>
               <a
                 href="#"
                 className="hover:text-luxury-primary transition-colors"
               >
-                Facebook
+                فیسبوک
               </a>
               <a
                 href="#"
                 className="hover:text-luxury-primary transition-colors"
               >
-                Twitter
+                توییتر
               </a>
             </div>
           </div>

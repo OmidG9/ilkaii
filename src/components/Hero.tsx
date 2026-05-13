@@ -15,14 +15,14 @@ export function Hero() {
           <div className="flex flex-col justify-center py-12 md:py-20 space-y-6 md:space-y-8">
             <div className="space-y-4">
               <p className="text-luxury-secondary text-sm md:text-base font-semibold uppercase tracking-widest">
-                Luxury Redefined
+                لوکس با نگاهی نو
               </p>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-serif font-bold text-luxury-primary leading-tight">
-                Elegance in Every Thread
+                زیبایی در هر تار
               </h1>
               <p className="text-luxury-text/80 text-base sm:text-lg md:text-xl leading-relaxed max-w-lg">
-                Curated collection of premium women's clothing. Experience
-                sophistication, quality, and timeless style.
+                مجموعه‌ای منتخب از پوشاک زنانه لوکس. تجربه‌ای از ظرافت، کیفیت و
+                سبک ماندگار.
               </p>
             </div>
 
@@ -39,7 +39,7 @@ export function Hero() {
                   "touch-target min-w-[120px]",
                 )}
               >
-                Shop Now
+                خرید کن
                 <ChevronRight size={18} />
               </Link>
               <Link
@@ -54,23 +54,23 @@ export function Hero() {
                   "touch-target min-w-[120px]",
                 )}
               >
-                View Collections
+                مشاهده مجموعه‌ها
               </Link>
             </div>
 
             {/* Trust Indicators */}
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-luxury-border/30">
               <div>
-                <p className="text-2xl font-bold text-luxury-primary">500+</p>
-                <p className="text-sm text-luxury-text/60">Premium Items</p>
+                <p className="text-2xl font-bold text-luxury-primary">۵۰۰+</p>
+                <p className="text-sm text-luxury-text/60">محصولات ممتاز</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-luxury-primary">10K+</p>
-                <p className="text-sm text-luxury-text/60">Happy Customers</p>
+                <p className="text-2xl font-bold text-luxury-primary">۱۰K+</p>
+                <p className="text-sm text-luxury-text/60">مشتریان خوشحال</p>
               </div>
               <div>
-                <p className="text-2xl font-bold text-luxury-primary">100%</p>
-                <p className="text-sm text-luxury-text/60">Authentic</p>
+                <p className="text-2xl font-bold text-luxury-primary">۱۰۰٪</p>
+                <p className="text-sm text-luxury-text/60">اصلی</p>
               </div>
             </div>
           </div>
@@ -79,7 +79,7 @@ export function Hero() {
           <div className="relative h-96 md:h-full min-h-[400px] md:min-h-[600px] overflow-hidden rounded-lg md:rounded-none">
             <Image
               src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=900&fit=crop"
-              alt="Luxury women's fashion collection"
+              alt="مجموعه پوشاک زنانه لوکس"
               fill
               priority
               quality={85}

@@ -4,9 +4,9 @@ import { Navbar } from "@/components/Navbar";
 import { MobileDrawer } from "@/components/MobileDrawer";
 
 export const metadata: Metadata = {
-  title: "ilkaii | Luxury Stock Clothing",
+  title: "ایلکایی | فروشگاه پوشاک لوکس",
   description:
-    "Premium luxury women's clothing collection. Exclusive designs, superior quality.",
+    "فروشگاه پوشاک زنانه لوکس با طراحی‌های منحصر به فرد و کیفیت ممتاز.",
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
   themeColor: "#6B5E57",
   icons: {
@@ -28,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="fa" dir="rtl">
       <head>
         <meta charSet="utf-8" />
         <meta name="format-detection" content="telephone=no" />

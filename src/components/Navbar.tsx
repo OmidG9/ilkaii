@@ -22,7 +22,7 @@ export function Navbar() {
               "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
               "transition-colors duration-200 active:scale-95",
             )}
-            aria-label="Open menu"
+            aria-label="باز کردن منو"
           >
             <Menu size={24} className="text-luxury-primary" strokeWidth={1.5} />
           </button>
@@ -46,25 +46,25 @@ export function Navbar() {
               href="/shop"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              Shop
+              فروشگاه
             </Link>
             <Link
               href="/collections"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              Collections
+              مجموعه‌ها
             </Link>
             <Link
               href="/about"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              About
+              درباره
             </Link>
             <Link
               href="/contact"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              Contact
+              تماس
             </Link>
           </div>
 
@@ -78,7 +78,7 @@ export function Navbar() {
                 "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
                 "transition-colors duration-200 active:scale-95",
               )}
-              aria-label="Search"
+              aria-label="جستجو"
             >
               <Search
                 size={24}
@@ -95,7 +95,7 @@ export function Navbar() {
                 "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
                 "transition-colors duration-200 active:scale-95",
               )}
-              aria-label="Wishlist"
+              aria-label="علاقه‌مندی‌ها"
             >
               <Heart
                 size={24}
@@ -113,7 +113,7 @@ export function Navbar() {
                 "transition-colors duration-200 active:scale-95",
                 "relative",
               )}
-              aria-label="Shopping cart"
+              aria-label="سبد خرید"
             >
               <ShoppingCart
                 size={24}
@@ -132,7 +132,7 @@ export function Navbar() {
           <div className="pb-4 animate-slide-up md:hidden">
             <input
               type="search"
-              placeholder="Search products..."
+              placeholder="جستجوی محصول..."
               className={cn(
                 "w-full px-4 py-3 rounded-lg",
                 "bg-white border border-luxury-border",

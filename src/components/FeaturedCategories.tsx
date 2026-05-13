@@ -17,35 +17,35 @@ interface Category {
 const FEATURED_CATEGORIES: Category[] = [
   {
     id: "1",
-    name: "Dresses",
+    name: "پیراهن‌ها",
     slug: "dresses",
     image:
       "https://images.unsplash.com/photo-1572804419928-bb6eb6ebea10?w=500&h=500&fit=crop",
-    description: "Elegant dresses for every occasion",
+    description: "پیراهن‌های باوقار برای هر مناسبت",
   },
   {
     id: "2",
-    name: "Tops & Blouses",
+    name: "تاپ و بلوز",
     slug: "tops",
     image:
       "https://images.unsplash.com/photo-1566070570912-1b12fa6650a0?w=500&h=500&fit=crop",
-    description: "Premium blouses and tops",
+    description: "بلوزها و تاپ‌های لوکس",
   },
   {
     id: "3",
-    name: "Bottoms",
+    name: "پایینی‌ها",
     slug: "bottoms",
     image:
       "https://images.unsplash.com/photo-1542272604-787c62d465d1?w=500&h=500&fit=crop",
-    description: "Stylish trousers and skirts",
+    description: "شلوار و دامن‌های شیک",
   },
   {
     id: "4",
-    name: "Outerwear",
+    name: "روپوش‌ها",
     slug: "outerwear",
     image:
       "https://images.unsplash.com/photo-1551028719-00167b16ebc5?w=500&h=500&fit=crop",
-    description: "Sophisticated jackets and coats",
+    description: "ژاکت‌ها و کت‌های شیک",
   },
 ];
 
@@ -57,14 +57,13 @@ export function FeaturedCategories() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div className="space-y-3">
             <p className="text-luxury-secondary text-sm md:text-base font-semibold uppercase tracking-widest">
-              Collections
+              مجموعه‌ها
             </p>
             <h2 className="text-4xl sm:text-5xl md:text-5xl font-serif font-bold text-luxury-primary leading-tight">
-              Shop by Category
+              جستجو با دسته‌بندی
             </h2>
             <p className="text-luxury-text/70 text-base md:text-lg max-w-2xl">
-              Explore our curated selection of premium women's fashion,
-              handpicked for quality and style.
+              مجموعه‌ای منتخب از مد زنانه لوکس با کیفیت و طراحی برجسته.
             </p>
           </div>
 
@@ -79,7 +78,7 @@ export function FeaturedCategories() {
               "touch-target whitespace-nowrap",
             )}
           >
-            View All
+            مشاهده همه
             <ArrowRight size={18} />
           </Link>
         </div>
@@ -128,7 +127,7 @@ export function FeaturedCategories() {
                   {category.description}
                 </p>
                 <div className="flex items-center gap-1 text-luxury-secondary font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-                  Explore
+                  مشاهده
                   <ArrowRight size={16} />
                 </div>
               </div>
@@ -150,11 +149,11 @@ export function FeaturedCategories() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div>
               <h3 className="text-2xl md:text-3xl font-serif font-bold text-luxury-primary mb-2">
-                Discover New Arrivals
+                تازه‌ترین‌ها را کشف کنید
               </h3>
               <p className="text-luxury-text/70">
-                Fresh collections added weekly. Don't miss out on the latest
-                luxury styles.
+                مجموعه‌های جدید هر هفته اضافه می‌شوند. جدیدترین سبک‌های لوکس را
+                از دست ندهید.
               </p>
             </div>
             <Link
@@ -169,7 +168,7 @@ export function FeaturedCategories() {
                 "min-w-max",
               )}
             >
-              Shop New Arrivals
+              خرید تازه‌ترین‌ها
               <ArrowRight size={18} />
             </Link>
           </div>

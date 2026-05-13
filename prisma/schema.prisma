@@ -65,6 +65,7 @@ model Address {
   postalCode        String
   country           String
   isDefault         Boolean   @default(false)
+  orders            Order[]
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -112,6 +113,7 @@ model Product {
   basePrice         Decimal   @db.Decimal(10, 2)
   salePrice         Decimal?  @db.Decimal(10, 2)
   currency          String    @default("USD")
+  stockCondition    String    @default("Grade A")
   
   // Stock Management (Critical for luxury stock clothing)
   sku               String    @unique
@@ -156,7 +158,6 @@ model Product {
   @@index([slug])
   @@index([sku])
   @@index([status])
-  @@fulltext([name, description])
 }
 
 enum ProductStatus {
@@ -218,6 +219,7 @@ model WishlistItem {
   @@index([userId])
   @@index([productId])
 }
+
 
 // Shopping Cart
 model CartItem {

@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { X, Heart, ShoppingCart, LogOut, User, Settings } from "lucide-react";
+import { X, Heart, ShoppingCart, User } from "lucide-react";
 import { useUIStore } from "@/store/uiStore";
 import { cn } from "@/lib/cn";
 
@@ -10,13 +10,13 @@ export function MobileDrawer() {
   const { isDrawerOpen, closeDrawer } = useUIStore();
 
   const menuItems = [
-    { label: "Shop All", href: "/shop" },
-    { label: "Women", href: "/shop/women" },
-    { label: "New Arrivals", href: "/shop/new" },
-    { label: "Sale", href: "/shop/sale" },
-    { label: "Collections", href: "/collections" },
-    { label: "About Us", href: "/about" },
-    { label: "Contact", href: "/contact" },
+    { label: "فروشگاه", href: "/shop" },
+    { label: "زنانه", href: "/shop/women" },
+    { label: "تازه‌ها", href: "/shop/new" },
+    { label: "حراج", href: "/shop/sale" },
+    { label: "مجموعه‌ها", href: "/collections" },
+    { label: "درباره ما", href: "/about" },
+    { label: "تماس", href: "/contact" },
   ];
 
   return (
@@ -33,8 +33,8 @@ export function MobileDrawer() {
       {/* Drawer */}
       <div
         className={cn(
-          "fixed left-0 top-0 bottom-0 z-40 w-80 max-w-[90vw]",
-          "bg-luxury-background border-r border-luxury-border",
+          "fixed right-0 top-0 bottom-0 z-40 w-80 max-w-[90vw]",
+          "bg-luxury-background border-l border-luxury-border",
           "transform transition-transform duration-300 ease-in-out",
           "md:hidden overflow-y-auto",
           isDrawerOpen ? "translate-x-0" : "-translate-x-full",
@@ -43,7 +43,7 @@ export function MobileDrawer() {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-luxury-border">
           <h2 className="text-xl font-serif font-bold text-luxury-primary">
-            Menu
+            منو
           </h2>
           <button
             onClick={closeDrawer}
@@ -52,7 +52,7 @@ export function MobileDrawer() {
               "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
               "transition-colors duration-200 active:scale-95",
             )}
-            aria-label="Close menu"
+            aria-label="بستن منو"
           >
             <X size={24} className="text-luxury-primary" strokeWidth={1.5} />
           </button>
@@ -92,7 +92,7 @@ export function MobileDrawer() {
             )}
           >
             <Heart size={20} className="text-luxury-secondary" />
-            <span>Wishlist</span>
+            <span>علاقه‌مندی‌ها</span>
           </Link>
 
           <Link
@@ -106,7 +106,7 @@ export function MobileDrawer() {
             )}
           >
             <ShoppingCart size={20} className="text-luxury-secondary" />
-            <span>Shopping Cart</span>
+            <span>سبد خرید</span>
           </Link>
 
           <Link
@@ -120,7 +120,7 @@ export function MobileDrawer() {
             )}
           >
             <User size={20} className="text-luxury-secondary" />
-            <span>My Account</span>
+            <span>حساب من</span>
           </Link>
         </div>
 
@@ -134,15 +134,15 @@ export function MobileDrawer() {
               "touch-target text-base",
             )}
           >
-            Sign In
+            ورود
           </button>
           <p className="text-xs text-luxury-text/60 text-center">
-            Don't have an account?{" "}
+            حساب کاربری ندارید؟{" "}
             <Link
               href="/signup"
               className="text-luxury-primary hover:underline font-medium"
             >
-              Sign up
+              ثبت نام
             </Link>
           </p>
         </div>
