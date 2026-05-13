@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import React from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 export function Hero() {
   return (
@@ -21,7 +21,8 @@ export function Hero() {
                 Elegance in Every Thread
               </h1>
               <p className="text-luxury-text/80 text-base sm:text-lg md:text-xl leading-relaxed max-w-lg">
-                Curated collection of premium women's clothing. Experience sophistication, quality, and timeless style.
+                Curated collection of premium women's clothing. Experience
+                sophistication, quality, and timeless style.
               </p>
             </div>
 
@@ -30,12 +31,12 @@ export function Hero() {
               <Link
                 href="/shop"
                 className={cn(
-                  'inline-flex items-center justify-center gap-2',
-                  'px-8 py-3.5 rounded-lg',
-                  'bg-luxury-primary text-white font-semibold',
-                  'hover:bg-luxury-hover active:scale-95',
-                  'transition-all duration-200',
-                  'touch-target min-w-[120px]'
+                  "inline-flex items-center justify-center gap-2",
+                  "px-8 py-3.5 rounded-lg",
+                  "bg-luxury-primary text-white font-semibold",
+                  "hover:bg-luxury-hover active:scale-95",
+                  "transition-all duration-200",
+                  "touch-target min-w-[120px]",
                 )}
               >
                 Shop Now
@@ -44,13 +45,13 @@ export function Hero() {
               <Link
                 href="/collections"
                 className={cn(
-                  'inline-flex items-center justify-center gap-2',
-                  'px-8 py-3.5 rounded-lg',
-                  'bg-white border-2 border-luxury-primary',
-                  'text-luxury-primary font-semibold',
-                  'hover:bg-luxury-primary/5 active:scale-95',
-                  'transition-all duration-200',
-                  'touch-target min-w-[120px]'
+                  "inline-flex items-center justify-center gap-2",
+                  "px-8 py-3.5 rounded-lg",
+                  "bg-white border-2 border-luxury-primary",
+                  "text-luxury-primary font-semibold",
+                  "hover:bg-luxury-primary/5 active:scale-95",
+                  "transition-all duration-200",
+                  "touch-target min-w-[120px]",
                 )}
               >
                 View Collections

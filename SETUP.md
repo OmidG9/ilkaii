@@ -14,6 +14,7 @@ NODE_ENV="development"
 ```
 
 ### Production Example (Liara)
+
 ```env
 DATABASE_URL="mysql://root:your_secure_password@mysql.liara.ir:3306/ilkaii"
 NEXT_PUBLIC_API_URL="https://ilkaii.liara.run"
@@ -29,11 +30,13 @@ NODE_ENV="production"
 1. **Install MySQL** (if not already installed)
 
 2. **Create database**
+
 ```sql
 CREATE DATABASE ilkaii;
 ```
 
 3. **Create user (optional but recommended)**
+
 ```sql
 CREATE USER 'ilkaii_user'@'localhost' IDENTIFIED BY 'secure_password';
 GRANT ALL PRIVILEGES ON ilkaii.* TO 'ilkaii_user'@'localhost';
@@ -41,11 +44,13 @@ FLUSH PRIVILEGES;
 ```
 
 4. **Update .env**
+
 ```env
 DATABASE_URL="mysql://ilkaii_user:secure_password@localhost:3306/ilkaii"
 ```
 
 5. **Initialize Prisma**
+
 ```bash
 npm run db:push
 ```
@@ -89,8 +94,9 @@ Opens Prisma Studio at `http://localhost:5555`
 ### Using Next.js Image Component
 
 ✅ **Optimized with WebP**
+
 ```tsx
-import Image from 'next/image';
+import Image from "next/image";
 
 <Image
   src="/image.jpg"
@@ -99,12 +105,13 @@ import Image from 'next/image';
   height={300}
   priority // For hero images
   quality={85}
-/>
+/>;
 ```
 
 ### Supported Domains
 
 Edit `next.config.ts`:
+
 ```typescript
 images: {
   domains: ['images.unsplash.com', 'cdn.yourdomain.com'],
@@ -230,6 +237,7 @@ Mobile-first approach:
 ```
 
 Breakpoints:
+
 - `sm`: 640px
 - `md`: 768px
 - `lg`: 1024px
@@ -245,7 +253,7 @@ Breakpoints:
 **File**: `src/store/myStore.ts`
 
 ```typescript
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface MyStore {
   count: number;
@@ -269,7 +277,7 @@ import { useMyStore } from '@/store/myStore';
 
 export function MyComponent() {
   const { count, increment } = useMyStore();
-  
+
   return (
     <div>
       <p>Count: {count}</p>
@@ -312,13 +320,13 @@ export default async function ProductsPage() {
 ```typescript
 const newProduct = await prisma.product.create({
   data: {
-    name: 'Premium Dress',
-    slug: 'premium-dress',
+    name: "Premium Dress",
+    slug: "premium-dress",
     basePrice: 150,
-    categoryId: 'category-1',
-    sku: 'DRESS-001',
+    categoryId: "category-1",
+    sku: "DRESS-001",
     totalStock: 50,
-    status: 'ACTIVE',
+    status: "ACTIVE",
   },
 });
 ```
@@ -366,17 +374,20 @@ await prisma.product.delete({
 ### VPS Deployment (Ubuntu 22.04)
 
 1. **Install Node.js**
+
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 ```
 
 2. **Install MySQL**
+
 ```bash
 sudo apt-get install -y mysql-server
 ```
 
 3. **Clone Repository**
+
 ```bash
 cd /opt
 git clone https://github.com/yourname/ilkaii.git
@@ -384,22 +395,26 @@ cd ilkaii
 ```
 
 4. **Install Dependencies**
+
 ```bash
 npm install
 ```
 
 5. **Setup Environment**
+
 ```bash
 cp .env.example .env
 # Edit .env with production values
 ```
 
 6. **Build Project**
+
 ```bash
 npm run build
 ```
 
 7. **Install PM2**
+
 ```bash
 npm install -g pm2
 pm2 start "npm start" --name "ilkaii"
@@ -410,6 +425,7 @@ pm2 save
 8. **Setup Nginx** (Reverse Proxy)
 
 Create `/etc/nginx/sites-available/ilkaii`:
+
 ```nginx
 server {
     listen 80;
@@ -427,6 +443,7 @@ server {
 ```
 
 Enable site:
+
 ```bash
 sudo ln -s /etc/nginx/sites-available/ilkaii /etc/nginx/sites-enabled/
 sudo nginx -t
@@ -434,6 +451,7 @@ sudo systemctl restart nginx
 ```
 
 9. **SSL Certificate (Let's Encrypt)**
+
 ```bash
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d ilkaii.com -d www.ilkaii.com
@@ -458,16 +476,19 @@ sudo certbot --nginx -d ilkaii.com -d www.ilkaii.com
 ## Testing & Quality
 
 ### Run Linter
+
 ```bash
 npm run lint
 ```
 
 ### TypeScript Check
+
 ```bash
 npx tsc --noEmit
 ```
 
 ### Build Test
+
 ```bash
 npm run build
 ```
@@ -483,6 +504,7 @@ Error: connect ECONNREFUSED 127.0.0.1:3306
 ```
 
 **Solution:**
+
 - Check MySQL is running
 - Verify DATABASE_URL in .env
 - Test connection: `mysql -u user -p`
@@ -490,6 +512,7 @@ Error: connect ECONNREFUSED 127.0.0.1:3306
 ### Image Optimization Error
 
 **Solution:**
+
 - Add domain to `next.config.ts` images.domains
 - Check image URL is accessible
 - Verify WebP support in browser

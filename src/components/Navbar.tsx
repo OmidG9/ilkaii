@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React from 'react';
-import Link from 'next/link';
-import { Menu, ShoppingCart, Heart, Search } from 'lucide-react';
-import { useUIStore } from '@/store/uiStore';
-import { cn } from '@/lib/cn';
+import React from "react";
+import Link from "next/link";
+import { Menu, ShoppingCart, Heart, Search } from "lucide-react";
+import { useUIStore } from "@/store/uiStore";
+import { cn } from "@/lib/cn";
 
 export function Navbar() {
   const { toggleDrawer } = useUIStore();
@@ -18,9 +18,9 @@ export function Navbar() {
           <button
             onClick={toggleDrawer}
             className={cn(
-              'flex md:hidden items-center justify-center',
-              'w-12 h-12 rounded-lg hover:bg-luxury-primary/5',
-              'transition-colors duration-200 active:scale-95'
+              "flex md:hidden items-center justify-center",
+              "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
+              "transition-colors duration-200 active:scale-95",
             )}
             aria-label="Open menu"
           >
@@ -31,10 +31,10 @@ export function Navbar() {
           <Link
             href="/"
             className={cn(
-              'absolute left-1/2 transform -translate-x-1/2 md:static md:transform-none',
-              'text-2xl sm:text-3xl font-serif font-bold',
-              'text-luxury-primary tracking-wide',
-              'hover:opacity-80 transition-opacity'
+              "absolute left-1/2 transform -translate-x-1/2 md:static md:transform-none",
+              "text-2xl sm:text-3xl font-serif font-bold",
+              "text-luxury-primary tracking-wide",
+              "hover:opacity-80 transition-opacity",
             )}
           >
             ilkaii
@@ -74,40 +74,52 @@ export function Navbar() {
             <button
               onClick={() => setIsSearchActive(!isSearchActive)}
               className={cn(
-                'flex items-center justify-center',
-                'w-12 h-12 rounded-lg hover:bg-luxury-primary/5',
-                'transition-colors duration-200 active:scale-95'
+                "flex items-center justify-center",
+                "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
+                "transition-colors duration-200 active:scale-95",
               )}
               aria-label="Search"
             >
-              <Search size={24} className="text-luxury-primary" strokeWidth={1.5} />
+              <Search
+                size={24}
+                className="text-luxury-primary"
+                strokeWidth={1.5}
+              />
             </button>
 
             {/* Wishlist */}
             <Link
               href="/wishlist"
               className={cn(
-                'hidden sm:flex items-center justify-center',
-                'w-12 h-12 rounded-lg hover:bg-luxury-primary/5',
-                'transition-colors duration-200 active:scale-95'
+                "hidden sm:flex items-center justify-center",
+                "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
+                "transition-colors duration-200 active:scale-95",
               )}
               aria-label="Wishlist"
             >
-              <Heart size={24} className="text-luxury-primary" strokeWidth={1.5} />
+              <Heart
+                size={24}
+                className="text-luxury-primary"
+                strokeWidth={1.5}
+              />
             </Link>
 
             {/* Cart */}
             <Link
               href="/cart"
               className={cn(
-                'flex items-center justify-center',
-                'w-12 h-12 rounded-lg hover:bg-luxury-primary/5',
-                'transition-colors duration-200 active:scale-95',
-                'relative'
+                "flex items-center justify-center",
+                "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
+                "transition-colors duration-200 active:scale-95",
+                "relative",
               )}
               aria-label="Shopping cart"
             >
-              <ShoppingCart size={24} className="text-luxury-primary" strokeWidth={1.5} />
+              <ShoppingCart
+                size={24}
+                className="text-luxury-primary"
+                strokeWidth={1.5}
+              />
               <span className="absolute top-2 right-2 w-5 h-5 bg-luxury-secondary text-white text-xs rounded-full flex items-center justify-center font-semibold">
                 0
               </span>
@@ -122,11 +134,11 @@ export function Navbar() {
               type="search"
               placeholder="Search products..."
               className={cn(
-                'w-full px-4 py-3 rounded-lg',
-                'bg-white border border-luxury-border',
-                'text-luxury-text placeholder-gray-500',
-                'focus:outline-none focus:border-luxury-primary',
-                'text-base'
+                "w-full px-4 py-3 rounded-lg",
+                "bg-white border border-luxury-border",
+                "text-luxury-text placeholder-gray-500",
+                "focus:outline-none focus:border-luxury-primary",
+                "text-base",
               )}
               autoFocus
             />

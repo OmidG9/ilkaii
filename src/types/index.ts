@@ -6,7 +6,7 @@ export interface Product {
   salePrice?: number;
   heroImage?: string;
   categoryId: string;
-  status: 'ACTIVE' | 'DRAFT' | 'INACTIVE' | 'DISCONTINUED';
+  status: "ACTIVE" | "DRAFT" | "INACTIVE" | "DISCONTINUED";
 }
 
 export interface Category {

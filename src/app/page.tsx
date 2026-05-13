@@ -1,10 +1,17 @@
-import dynamic from 'next/dynamic';
-import { Hero } from '@/components/Hero';
+import dynamic from "next/dynamic";
+import { Hero } from "@/components/Hero";
 
 // Dynamic imports for better performance
-const FeaturedCategories = dynamic(() =>
-  import('@/components/FeaturedCategories').then(mod => ({ default: mod.FeaturedCategories })),
-  { loading: () => <div className="h-96 bg-luxury-background animate-shimmer" /> }
+const FeaturedCategories = dynamic(
+  () =>
+    import("@/components/FeaturedCategories").then((mod) => ({
+      default: mod.FeaturedCategories,
+    })),
+  {
+    loading: () => (
+      <div className="h-96 bg-luxury-background animate-shimmer" />
+    ),
+  },
 );
 
 export default function Home() {
@@ -25,7 +32,8 @@ export default function Home() {
                 Stay Updated
               </h2>
               <p className="text-lg text-white/80">
-                Subscribe to our newsletter for exclusive offers and early access to new collections.
+                Subscribe to our newsletter for exclusive offers and early
+                access to new collections.
               </p>
             </div>
 
@@ -57,7 +65,9 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             {/* Brand */}
             <div className="space-y-4">
-              <h3 className="text-2xl font-serif font-bold text-luxury-primary">ilkaii</h3>
+              <h3 className="text-2xl font-serif font-bold text-luxury-primary">
+                ilkaii
+              </h3>
               <p className="text-luxury-text/70 text-sm">
                 Luxury women's clothing with premium quality and timeless style.
               </p>
@@ -67,10 +77,38 @@ export default function Home() {
             <div className="space-y-4">
               <h4 className="font-semibold text-luxury-text">Shop</h4>
               <ul className="space-y-2 text-sm text-luxury-text/70">
-                <li><a href="/shop" className="hover:text-luxury-primary transition-colors">All Products</a></li>
-                <li><a href="/shop/new" className="hover:text-luxury-primary transition-colors">New Arrivals</a></li>
-                <li><a href="/shop/sale" className="hover:text-luxury-primary transition-colors">Sale</a></li>
-                <li><a href="/collections" className="hover:text-luxury-primary transition-colors">Collections</a></li>
+                <li>
+                  <a
+                    href="/shop"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    All Products
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/shop/new"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    New Arrivals
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/shop/sale"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Sale
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/collections"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Collections
+                  </a>
+                </li>
               </ul>
             </div>
 
@@ -78,10 +116,38 @@ export default function Home() {
             <div className="space-y-4">
               <h4 className="font-semibold text-luxury-text">Company</h4>
               <ul className="space-y-2 text-sm text-luxury-text/70">
-                <li><a href="/about" className="hover:text-luxury-primary transition-colors">About Us</a></li>
-                <li><a href="/blog" className="hover:text-luxury-primary transition-colors">Blog</a></li>
-                <li><a href="/contact" className="hover:text-luxury-primary transition-colors">Contact</a></li>
-                <li><a href="/careers" className="hover:text-luxury-primary transition-colors">Careers</a></li>
+                <li>
+                  <a
+                    href="/about"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    About Us
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/blog"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Blog
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/contact"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Contact
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/careers"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Careers
+                  </a>
+                </li>
               </ul>
             </div>
 
@@ -89,10 +155,38 @@ export default function Home() {
             <div className="space-y-4">
               <h4 className="font-semibold text-luxury-text">Support</h4>
               <ul className="space-y-2 text-sm text-luxury-text/70">
-                <li><a href="/faq" className="hover:text-luxury-primary transition-colors">FAQ</a></li>
-                <li><a href="/shipping" className="hover:text-luxury-primary transition-colors">Shipping</a></li>
-                <li><a href="/returns" className="hover:text-luxury-primary transition-colors">Returns</a></li>
-                <li><a href="/privacy" className="hover:text-luxury-primary transition-colors">Privacy Policy</a></li>
+                <li>
+                  <a
+                    href="/faq"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    FAQ
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/shipping"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Shipping
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/returns"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Returns
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="/privacy"
+                    className="hover:text-luxury-primary transition-colors"
+                  >
+                    Privacy Policy
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
@@ -101,9 +195,24 @@ export default function Home() {
           <div className="border-t border-luxury-border pt-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm text-luxury-text/60">
             <p>&copy; 2024 ilkaii. All rights reserved.</p>
             <div className="flex gap-6">
-              <a href="#" className="hover:text-luxury-primary transition-colors">Instagram</a>
-              <a href="#" className="hover:text-luxury-primary transition-colors">Facebook</a>
-              <a href="#" className="hover:text-luxury-primary transition-colors">Twitter</a>
+              <a
+                href="#"
+                className="hover:text-luxury-primary transition-colors"
+              >
+                Instagram
+              </a>
+              <a
+                href="#"
+                className="hover:text-luxury-primary transition-colors"
+              >
+                Facebook
+              </a>
+              <a
+                href="#"
+                className="hover:text-luxury-primary transition-colors"
+              >
+                Twitter
+              </a>
             </div>
           </div>
         </div>

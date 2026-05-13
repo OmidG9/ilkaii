@@ -60,38 +60,39 @@ ilkaii/
 
 ### Configuration Files
 
-| File | Purpose |
-|------|---------|
-| `package.json` | Node.js dependencies & scripts |
-| `tsconfig.json` | TypeScript compiler options |
-| `next.config.ts` | Next.js settings (images, compression) |
-| `tailwind.config.ts` | Tailwind CSS theme & colors |
-| `postcss.config.js` | CSS processing pipeline |
-| `.env.example` | Template for environment variables |
-| `.gitignore` | Files to ignore in git |
+| File                 | Purpose                                |
+| -------------------- | -------------------------------------- |
+| `package.json`       | Node.js dependencies & scripts         |
+| `tsconfig.json`      | TypeScript compiler options            |
+| `next.config.ts`     | Next.js settings (images, compression) |
+| `tailwind.config.ts` | Tailwind CSS theme & colors            |
+| `postcss.config.js`  | CSS processing pipeline                |
+| `.env.example`       | Template for environment variables     |
+| `.gitignore`         | Files to ignore in git                 |
 
 ### Database
 
-| File | Purpose |
-|------|---------|
+| File                   | Purpose                          |
+| ---------------------- | -------------------------------- |
 | `prisma/schema.prisma` | MySQL database schema definition |
 
 ### Application (src/)
 
-| Directory | Purpose |
-|-----------|---------|
-| `app/` | Next.js pages & layouts |
+| Directory     | Purpose                   |
+| ------------- | ------------------------- |
+| `app/`        | Next.js pages & layouts   |
 | `components/` | Reusable React components |
-| `lib/` | Utility functions |
-| `store/` | Zustand state management |
-| `types/` | TypeScript interfaces |
-| `styles/` | Global CSS |
+| `lib/`        | Utility functions         |
+| `store/`      | Zustand state management  |
+| `types/`      | TypeScript interfaces     |
+| `styles/`     | Global CSS                |
 
 ---
 
 ## Key Files to Know
 
 ### Home Page
+
 **File**: `src/app/page.tsx`
 
 - Main landing page
@@ -101,6 +102,7 @@ ilkaii/
 - Footer with links
 
 ### Root Layout
+
 **File**: `src/app/layout.tsx`
 
 - HTML structure
@@ -110,6 +112,7 @@ ilkaii/
 - Mobile viewport config
 
 ### Database Schema
+
 **File**: `prisma/schema.prisma`
 
 - 10+ models (User, Product, Order, etc)
@@ -144,9 +147,10 @@ export default function Page() {
 ```
 
 2. **Import components**:
+
 ```typescript
-import { Hero } from '@/components/Hero';
-import { FeaturedCategories } from '@/components/FeaturedCategories';
+import { Hero } from "@/components/Hero";
+import { FeaturedCategories } from "@/components/FeaturedCategories";
 ```
 
 3. **Use Tailwind classes** for styling
@@ -172,6 +176,7 @@ export function ComponentName() {
 ```
 
 2. **Import in page**:
+
 ```typescript
 import { ComponentName } from '@/components/ComponentName';
 
@@ -192,11 +197,13 @@ model MyModel {
 ```
 
 2. **Create migration**:
+
 ```bash
 npm run db:migrate -- --name "add_my_model"
 ```
 
 3. **Query in component**:
+
 ```typescript
 const items = await prisma.myModel.findMany();
 ```
@@ -263,27 +270,28 @@ http://localhost:3000/about         → About (to be created)
 
 ### Component Sizes (Lines of Code)
 
-| Component | LOC |
-|-----------|-----|
-| Navbar | ~100 |
-| MobileDrawer | ~120 |
-| Hero | ~110 |
+| Component          | LOC  |
+| ------------------ | ---- |
+| Navbar             | ~100 |
+| MobileDrawer       | ~120 |
+| Hero               | ~110 |
 | FeaturedCategories | ~140 |
 
 ### Configuration Files
 
-| File | Lines |
-|------|-------|
-| package.json | ~40 |
-| tailwind.config.ts | ~60 |
+| File                 | Lines |
+| -------------------- | ----- |
+| package.json         | ~40   |
+| tailwind.config.ts   | ~60   |
 | prisma/schema.prisma | ~400+ |
-| tsconfig.json | ~40 |
+| tsconfig.json        | ~40   |
 
 ---
 
 ## Next Steps for Development
 
 1. **Setup (5 min)**
+
    ```bash
    npm install
    npm run db:push
@@ -354,18 +362,21 @@ After `npm run build`:
 ## Environment Variables
 
 **Required for development:**
+
 ```
 DATABASE_URL=mysql://...
 NODE_ENV=development
 ```
 
 **Optional:**
+
 ```
 NEXT_PUBLIC_API_URL=http://localhost:3000
 DEBUG=true
 ```
 
 **Production:**
+
 ```
 DATABASE_URL=mysql://... (production server)
 NEXT_PUBLIC_API_URL=https://ilkaii.com
@@ -377,11 +388,13 @@ NODE_ENV=production
 ## Important Notes
 
 ⚠️ **Never commit:**
+
 - `.env` (local secrets)
 - `node_modules/`
 - `.next/` build folder
 
 ✅ **Always commit:**
+
 - `src/` code
 - `prisma/schema.prisma`
 - `package.json` & `package-lock.json`

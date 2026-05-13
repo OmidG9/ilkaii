@@ -4,11 +4,11 @@ Comprehensive guide to ilkaii's UI components and their usage.
 
 ## Component Overview
 
-| Component | Location | Type | Purpose |
-|-----------|----------|------|---------|
-| Navbar | `src/components/Navbar.tsx` | Client | Main navigation bar |
-| MobileDrawer | `src/components/MobileDrawer.tsx` | Client | Mobile menu drawer |
-| Hero | `src/components/Hero.tsx` | Client | Hero section with CTA |
+| Component          | Location                                | Type   | Purpose                |
+| ------------------ | --------------------------------------- | ------ | ---------------------- |
+| Navbar             | `src/components/Navbar.tsx`             | Client | Main navigation bar    |
+| MobileDrawer       | `src/components/MobileDrawer.tsx`       | Client | Mobile menu drawer     |
+| Hero               | `src/components/Hero.tsx`               | Client | Hero section with CTA  |
 | FeaturedCategories | `src/components/FeaturedCategories.tsx` | Client | Category showcase grid |
 
 ---
@@ -26,7 +26,7 @@ Comprehensive guide to ilkaii's UI components and their usage.
 ✅ Shopping cart badge  
 ✅ Wishlist link  
 ✅ Responsive button sizing  
-✅ Touch-friendly (44px buttons)  
+✅ Touch-friendly (44px buttons)
 
 ### Props
 
@@ -41,12 +41,12 @@ const { toggleDrawer } = useUIStore();
 
 ### Responsive Behavior
 
-| Screen | Mobile | Tablet | Desktop |
-|--------|--------|--------|---------|
-| Menu Button | ✓ | Hidden | Hidden |
-| Search Bar | Dropdown | Dropdown | Inline |
-| Nav Links | Hidden | Hidden | ✓ |
-| Cart Badge | ✓ | ✓ | ✓ |
+| Screen      | Mobile   | Tablet   | Desktop |
+| ----------- | -------- | -------- | ------- |
+| Menu Button | ✓        | Hidden   | Hidden  |
+| Search Bar  | Dropdown | Dropdown | Inline  |
+| Nav Links   | Hidden   | Hidden   | ✓       |
+| Cart Badge  | ✓        | ✓        | ✓       |
 
 ### Usage Example
 
@@ -68,6 +68,7 @@ export default function Layout() {
 **Change Navigation Links:**
 
 Edit the navigation links section:
+
 ```typescript
 <Link href="/shop" className="...">Shop</Link>
 <Link href="/collections" className="...">Collections</Link>
@@ -75,6 +76,7 @@ Edit the navigation links section:
 ```
 
 **Customize Logo:**
+
 ```typescript
 <Link href="/" className="...">
   ilkaii {/* Change to your logo */}
@@ -82,6 +84,7 @@ Edit the navigation links section:
 ```
 
 **Update Cart Count:**
+
 ```typescript
 <span className="absolute top-2 right-2 w-5 h-5 bg-luxury-secondary ...">
   {cartCount} {/* Get from Zustand store */}
@@ -102,7 +105,7 @@ Edit the navigation links section:
 ✅ Quick action buttons  
 ✅ Sign in/signup section  
 ✅ Touch-optimized spacing  
-✅ Escape key & click-outside support  
+✅ Escape key & click-outside support
 
 ### Props
 
@@ -119,13 +122,13 @@ const { isDrawerOpen, closeDrawer } = useUIStore();
 
 ```typescript
 const menuItems = [
-  { label: 'Shop All', href: '/shop' },
-  { label: 'Women', href: '/shop/women' },
-  { label: 'New Arrivals', href: '/shop/new' },
-  { label: 'Sale', href: '/shop/sale' },
-  { label: 'Collections', href: '/collections' },
-  { label: 'About Us', href: '/about' },
-  { label: 'Contact', href: '/contact' },
+  { label: "Shop All", href: "/shop" },
+  { label: "Women", href: "/shop/women" },
+  { label: "New Arrivals", href: "/shop/new" },
+  { label: "Sale", href: "/shop/sale" },
+  { label: "Collections", href: "/collections" },
+  { label: "About Us", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ];
 ```
 
@@ -147,15 +150,17 @@ export default function Layout() {
 ### Customization
 
 **Add More Menu Items:**
+
 ```typescript
 const menuItems = [
   // ... existing items
-  { label: 'Lookbook', href: '/lookbook' },
-  { label: 'Gift Guide', href: '/gifts' },
+  { label: "Lookbook", href: "/lookbook" },
+  { label: "Gift Guide", href: "/gifts" },
 ];
 ```
 
 **Add Quick Actions:**
+
 ```typescript
 <Link href="/account" className="...">
   <User size={20} />
@@ -178,7 +183,7 @@ const menuItems = [
 ✅ Dual CTA buttons  
 ✅ Trust indicators (stats)  
 ✅ Decorative gradient elements  
-✅ Priority image loading  
+✅ Priority image loading
 
 ### Props
 
@@ -200,20 +205,22 @@ No props required - uses hardcoded content.
 
 ### Responsive Layout
 
-| Screen | Layout | Image |
-|--------|--------|-------|
-| Mobile | Stack (text above) | Full width |
-| Tablet | Side-by-side | 50% width |
-| Desktop | Grid (2 cols) | 50% width |
+| Screen  | Layout             | Image      |
+| ------- | ------------------ | ---------- |
+| Mobile  | Stack (text above) | Full width |
+| Tablet  | Side-by-side       | 50% width  |
+| Desktop | Grid (2 cols)      | 50% width  |
 
 ### Trust Indicators
 
 Currently displays:
+
 - 500+ Premium Items
 - 10K+ Happy Customers
 - 100% Authentic
 
 **To Make Dynamic:**
+
 ```typescript
 const stats = [
   { number: productCount, label: 'Premium Items' },
@@ -242,6 +249,7 @@ export default function Home() {
 ### Customization
 
 **Change Hero Image:**
+
 ```typescript
 <Image
   src="/images/luxury-dress.webp" // Your image
@@ -251,12 +259,14 @@ export default function Home() {
 ```
 
 **Change Heading Text:**
+
 ```typescript
 <h1>Your Heading Here</h1>
 <p>Your description here</p>
 ```
 
 **Modify CTA Buttons:**
+
 ```typescript
 <Link href="/custom-path" className="...">
   Custom Button Text
@@ -277,7 +287,7 @@ export default function Home() {
 ✅ Icon + image combination  
 ✅ Bottom promotional section  
 ✅ Link to collection pages  
-✅ Mobile-optimized spacing  
+✅ Mobile-optimized spacing
 
 ### Props
 
@@ -358,11 +368,11 @@ export function FeaturedCategories() {
 const FEATURED_CATEGORIES: Category[] = [
   // ... existing
   {
-    id: '5',
-    name: 'Accessories',
-    slug: 'accessories',
-    image: 'https://...',
-    description: 'Belts, scarves, and more',
+    id: "5",
+    name: "Accessories",
+    slug: "accessories",
+    image: "https://...",
+    description: "Belts, scarves, and more",
   },
 ];
 ```
@@ -389,10 +399,10 @@ interface MyComponentProps {
   onAction?: () => void;
 }
 
-export function MyComponent({ 
-  title, 
-  description, 
-  onAction 
+export function MyComponent({
+  title,
+  description,
+  onAction
 }: MyComponentProps) {
   return (
     <div className={cn(
@@ -433,7 +443,7 @@ import { MyComponent } from '@/components/MyComponent';
 
 export function Page() {
   return (
-    <MyComponent 
+    <MyComponent
       title="Example"
       description="Component description"
       onAction={() => console.log('Action!')}
@@ -451,14 +461,14 @@ export function Page() {
 Safely combine class names:
 
 ```typescript
-import { cn } from '@/lib/cn';
+import { cn } from "@/lib/cn";
 
 const buttonClass = cn(
-  'px-4 py-2 rounded-lg',          // Base
-  'bg-luxury-primary text-white',   // Style
-  isActive && 'opacity-50',         // Conditional
-  'hover:bg-luxury-hover',          // Hover
-  'transition-all duration-200'     // Animation
+  "px-4 py-2 rounded-lg", // Base
+  "bg-luxury-primary text-white", // Style
+  isActive && "opacity-50", // Conditional
+  "hover:bg-luxury-hover", // Hover
+  "transition-all duration-200", // Animation
 );
 ```
 
@@ -466,31 +476,31 @@ const buttonClass = cn(
 
 ```typescript
 // Text colors
-className="text-luxury-primary"
-className="text-luxury-secondary"
-className="text-luxury-text"
+className = "text-luxury-primary";
+className = "text-luxury-secondary";
+className = "text-luxury-text";
 
 // Background colors
-className="bg-luxury-primary"
-className="bg-luxury-background"
-className="bg-light"
+className = "bg-luxury-primary";
+className = "bg-luxury-background";
+className = "bg-light";
 
 // Border colors
-className="border-luxury-border"
-className="border-luxury-primary"
+className = "border-luxury-border";
+className = "border-luxury-primary";
 
 // Touch targets
-className="touch-target" // 44px min height/width
+className = "touch-target"; // 44px min height/width
 ```
 
 ### Responsive Classes
 
 ```typescript
 // Mobile first approach
-className="text-base sm:text-lg md:text-xl lg:text-2xl"
-className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
-className="hidden md:flex" // Show on medium+ screens
-className="md:hidden" // Hide on medium+ screens
+className = "text-base sm:text-lg md:text-xl lg:text-2xl";
+className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4";
+className = "hidden md:flex"; // Show on medium+ screens
+className = "md:hidden"; // Hide on medium+ screens
 ```
 
 ---
@@ -500,12 +510,12 @@ className="md:hidden" // Hide on medium+ screens
 ### Using Icons
 
 ```typescript
-import { 
-  Menu, 
-  ShoppingCart, 
-  Heart, 
+import {
+  Menu,
+  ShoppingCart,
+  Heart,
   Search,
-  ChevronRight 
+  ChevronRight
 } from 'lucide-react';
 
 <Menu size={24} strokeWidth={1.5} />
@@ -515,16 +525,16 @@ import {
 
 ### Common Icons in Project
 
-| Icon | Usage |
-|------|-------|
-| Menu | Mobile menu button |
-| ShoppingCart | Cart link |
-| Heart | Wishlist link |
-| Search | Search button |
-| X | Close drawer |
-| ChevronRight | CTA indicators |
-| User | Account link |
-| Settings | Settings link |
+| Icon         | Usage              |
+| ------------ | ------------------ |
+| Menu         | Mobile menu button |
+| ShoppingCart | Cart link          |
+| Heart        | Wishlist link      |
+| Search       | Search button      |
+| X            | Close drawer       |
+| ChevronRight | CTA indicators     |
+| User         | Account link       |
+| Settings     | Settings link      |
 
 ### All Available Icons
 
@@ -558,7 +568,7 @@ export function MyComponent() {
 **File**: `src/store/myStore.ts`
 
 ```typescript
-import { create } from 'zustand';
+import { create } from "zustand";
 
 interface MyStore {
   count: number;
@@ -568,8 +578,8 @@ interface MyStore {
 
 export const useMyStore = create<MyStore>((set) => ({
   count: 0,
-  increment: () => set(state => ({ count: state.count + 1 })),
-  decrement: () => set(state => ({ count: state.count - 1 })),
+  increment: () => set((state) => ({ count: state.count + 1 })),
+  decrement: () => set((state) => ({ count: state.count - 1 })),
 }));
 ```
 

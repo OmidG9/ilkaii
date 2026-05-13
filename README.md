@@ -5,6 +5,7 @@
 ## 🎯 Project Overview
 
 ilkaii is a luxury stock clothing e-commerce platform designed with:
+
 - **Mobile-first responsive design** with 44px+ touch targets
 - **High-performance architecture** using Next.js 15 Server Components
 - **Luxury design system** with custom color palette
@@ -62,14 +63,14 @@ ilkaii/
 
 ### Luxury Color Palette
 
-| Color | Value | Usage |
-|-------|-------|-------|
-| **Primary** | #6B5E57 | Main buttons, links, headings |
-| **Secondary** | #A89C94 | Accents, badges, hover states |
-| **Background** | #F5F1ED | Page background |
-| **Text** | #2B2B2B | Body text, dark content |
-| **Border** | #E8E3DE | Dividers, card borders |
-| **Hover** | #5A4D46 | Primary button hover state |
+| Color          | Value   | Usage                         |
+| -------------- | ------- | ----------------------------- |
+| **Primary**    | #6B5E57 | Main buttons, links, headings |
+| **Secondary**  | #A89C94 | Accents, badges, hover states |
+| **Background** | #F5F1ED | Page background               |
+| **Text**       | #2B2B2B | Body text, dark content       |
+| **Border**     | #E8E3DE | Dividers, card borders        |
+| **Hover**      | #5A4D46 | Primary button hover state    |
 
 ### Typography
 
@@ -129,16 +130,19 @@ See `prisma/schema.prisma` for complete schema details.
 ### Installation
 
 1. **Clone the repository**
+
 ```bash
 cd ilkaii
 ```
 
 2. **Install dependencies**
+
 ```bash
 npm install
 ```
 
 3. **Set up environment variables**
+
 ```bash
 cp .env.example .env
 # Edit .env with your database credentials
@@ -146,6 +150,7 @@ cp .env.example .env
 ```
 
 4. **Set up the database**
+
 ```bash
 npm run db:generate  # Generate Prisma client
 npm run db:push     # Create tables in MySQL
@@ -154,6 +159,7 @@ npm run db:migrate  # Create migration files
 ```
 
 5. **Start development server**
+
 ```bash
 npm run dev
 ```
@@ -162,16 +168,16 @@ Visit `http://localhost:3000` in your browser.
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start development server |
-| `npm run build` | Build for production |
-| `npm start` | Start production server |
-| `npm run lint` | Run ESLint |
-| `npm run db:generate` | Generate Prisma client |
-| `npm run db:migrate` | Create database migrations |
-| `npm run db:push` | Sync schema to database |
-| `npm run db:studio` | Open Prisma Studio GUI |
+| Command               | Description                |
+| --------------------- | -------------------------- |
+| `npm run dev`         | Start development server   |
+| `npm run build`       | Build for production       |
+| `npm start`           | Start production server    |
+| `npm run lint`        | Run ESLint                 |
+| `npm run db:generate` | Generate Prisma client     |
+| `npm run db:migrate`  | Create database migrations |
+| `npm run db:push`     | Sync schema to database    |
+| `npm run db:studio`   | Open Prisma Studio GUI     |
 
 ---
 
@@ -184,7 +190,7 @@ Visit `http://localhost:3000` in your browser.
 ✅ **Server Components** for data fetching  
 ✅ **Minimal client-side state** with Zustand  
 ✅ **Automatic code splitting** and lazy loading  
-✅ **Image optimization** with responsive sizes  
+✅ **Image optimization** with responsive sizes
 
 ### Mobile-First Design
 
@@ -192,11 +198,12 @@ Visit `http://localhost:3000` in your browser.
 ✅ Touch-friendly buttons (44px+)  
 ✅ Mobile-optimized images  
 ✅ Safe area insets for notched devices  
-✅ Efficient CSS with Tailwind  
+✅ Efficient CSS with Tailwind
 
 ### Component Breakdown
 
 #### **Navbar** (`src/components/Navbar.tsx`)
+
 - Sticky navigation bar
 - Mobile hamburger menu (< 768px)
 - Shopping cart with badge
@@ -204,6 +211,7 @@ Visit `http://localhost:3000` in your browser.
 - Responsive layout
 
 #### **MobileDrawer** (`src/components/MobileDrawer.tsx`)
+
 - Smooth slide-in menu
 - Navigation links
 - Quick action buttons (Wishlist, Cart, Account)
@@ -211,6 +219,7 @@ Visit `http://localhost:3000` in your browser.
 - Overlay backdrop
 
 #### **Hero** (`src/components/Hero.tsx`)
+
 - Full-width hero section with image
 - Prominent CTA buttons
 - Trust indicators
@@ -218,6 +227,7 @@ Visit `http://localhost:3000` in your browser.
 - Responsive text scaling
 
 #### **FeaturedCategories** (`src/components/FeaturedCategories.tsx`)
+
 - 4-column grid (responsive to 1-2 columns on mobile)
 - Image hover effects
 - Category cards with descriptions
@@ -266,7 +276,7 @@ Visit `http://localhost:3000` in your browser.
 ### Using the UI Store (Zustand)
 
 ```typescript
-import { useUIStore } from '@/store/uiStore';
+import { useUIStore } from "@/store/uiStore";
 
 export function MyComponent() {
   const { isDrawerOpen, toggleDrawer } = useUIStore();
@@ -277,13 +287,13 @@ export function MyComponent() {
 ### Database Queries
 
 ```typescript
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 // In Server Components
 const products = await prisma.product.findMany({
-  include: { category: true, images: true }
+  include: { category: true, images: true },
 });
 ```
 
@@ -316,6 +326,7 @@ pm2 save
 ### Docker
 
 Create `Dockerfile`:
+
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -332,16 +343,19 @@ CMD ["npm", "start"]
 ## 📦 Dependencies
 
 ### Core
+
 - **next@15**: React framework
 - **react@19**: UI library
 - **prisma@5**: ORM for MySQL
 - **tailwindcss@3**: Styling
 
 ### Icons & UI
+
 - **lucide-react**: Icon library
 - **zustand**: State management
 
 ### Dev Tools
+
 - **typescript**: Type safety
 - **eslint**: Code linting
 
@@ -366,6 +380,7 @@ MIT License - Feel free to use for commercial projects.
 ## 🤝 Support
 
 For questions or issues, refer to:
+
 - [Next.js Documentation](https://nextjs.org/docs)
 - [Prisma Documentation](https://www.prisma.io/docs)
 - [Tailwind Documentation](https://tailwindcss.com/docs)

@@ -1,24 +1,25 @@
-import '@/styles/globals.css';
-import type { Metadata, Viewport } from 'next';
-import { Navbar } from '@/components/Navbar';
-import { MobileDrawer } from '@/components/MobileDrawer';
+import "@/styles/globals.css";
+import type { Metadata, Viewport } from "next";
+import { Navbar } from "@/components/Navbar";
+import { MobileDrawer } from "@/components/MobileDrawer";
 
 export const metadata: Metadata = {
-  title: 'ilkaii | Luxury Stock Clothing',
-  description: 'Premium luxury women\'s clothing collection. Exclusive designs, superior quality.',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
-  themeColor: '#6B5E57',
+  title: "ilkaii | Luxury Stock Clothing",
+  description:
+    "Premium luxury women's clothing collection. Exclusive designs, superior quality.",
+  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+  themeColor: "#6B5E57",
   icons: {
-    icon: '/favicon.ico',
+    icon: "/favicon.ico",
   },
 };
 
 export const viewport: Viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  viewportFit: 'cover',
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -32,7 +33,10 @@ export default function RootLayout({
         <meta charSet="utf-8" />
         <meta name="format-detection" content="telephone=no" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
       </head>
       <body className="bg-luxury-background text-luxury-text antialiased">
         <Navbar />
