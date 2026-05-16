@@ -256,6 +256,9 @@ model Order {
   // Items
   items             OrderItem[]
   
+  // Payment
+  payment           Payment?
+  
   // Pricing
   subtotal          Decimal   @db.Decimal(12, 2)
   taxAmount         Decimal   @db.Decimal(10, 2)
@@ -364,3 +367,31 @@ model Review {
   @@index([userId])
   @@index([rating])
 }
+
+// Payment tracking (Zarinpal integration)
+model Payment {
+  id                String    @id @default(cuid())
+  orderId           String    @unique
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  amount            Decimal   @db.Decimal(12, 2)
+  authority         String?   @unique
+  refId             String?   @unique
+  status            PaymentStatus @default(PENDING)
+  
+  // Gateway Info
+  gateway           String    @default("ZARINPAL")
+  gatewayResponse   String?   @db.Json
+  
+  // Metadata
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([orderId])
+  @@index([authority])
+  @@index([status])
+}
+
+// Add payments relation to Order
+// Note: Manually add this relation to Order model:
+// payments           Payment[]

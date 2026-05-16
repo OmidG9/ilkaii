@@ -1,0 +1,170 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  basePrice: number;
+  totalStock: number;
+  status: string;
+}
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [page]);
+
+  async function fetchProducts() {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `/api/admin/products?page=${page}&pageSize=20`,
+        {
+          headers: { "x-user-role": "ADMIN" },
+        },
+      );
+      const data = await response.json();
+      if (data.success) {
+        setProducts(data.data.data);
+        setTotal(data.data.total);
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-gray-900">Products</h2>
+        <Link
+          href="/admin/products/new"
+          className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+        >
+          + Add Product
+        </Link>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8">Loading...</div>
+      ) : (
+        <>
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Product Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    SKU
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Price
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Stock
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => (
+                  <tr key={product.id} className="border-b hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {product.name}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">
+                      {product.sku}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-semibold">
+                      ${product.basePrice}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded text-white text-xs font-semibold ${
+                          product.totalStock > 10
+                            ? "bg-green-500"
+                            : product.totalStock > 0
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                        }`}
+                      >
+                        {product.totalStock}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span
+                        className={`px-3 py-1 rounded text-white text-xs font-semibold ${
+                          product.status === "ACTIVE"
+                            ? "bg-blue-500"
+                            : "bg-gray-500"
+                        }`}
+                      >
+                        {product.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm space-x-2">
+                      <Link
+                        href={`/admin/products/${product.id}`}
+                        className="text-blue-600 hover:underline"
+                      >
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => {
+                          if (confirm("Delete this product?")) {
+                            // TODO: Implement delete
+                          }
+                        }}
+                        className="text-red-600 hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="mt-6 flex justify-center items-center space-x-2">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+              className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-gray-600">
+              Page {page} of {Math.ceil(total / 20)}
+            </span>
+            <button
+              disabled={page * 20 >= total}
+              onClick={() => setPage(page + 1)}
+              className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
