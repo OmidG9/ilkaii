@@ -364,4 +364,493 @@ export const productsService = {
       status: "ACTIVE",
     });
   },
+
+  async createProduct(data: any) {
+    // Validate slug uniqueness
+    const existing = await productsRepo.getBySlug(data.slug);
+    if (existing) {
+      throw new ApiError(400, "Slug already exists");
+    }
+
+    // Initialize stock counts
+    const productData = {
+      ...data,
+      availableStock: data.totalStock || 0,
+      reservedStock: 0,
+    };
+
+    return await productsRepo.create(productData);
+  },
+
+  async updateProduct(id: string, data: any) {
+    const product = await productsRepo.getById(id);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    // If slug changed, check uniqueness
+    if (data.slug && data.slug !== product.slug) {
+      const existing = await productsRepo.getBySlug(data.slug);
+      if (existing) {
+        throw new ApiError(400, "Slug already exists");
+      }
+    }
+
+    return await productsRepo.update(id, data);
+  },
+
+  async deleteProduct(id: string) {
+    const product = await productsRepo.getById(id);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+    return await productsRepo.delete(id);
+  },
+
+  async addProductImages(productId: string, images: any[]) {
+    const product = await productsRepo.getById(productId);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    return await Promise.all(
+      images.map((img, idx) =>
+        prisma.productImage.create({
+          data: {
+            productId,
+            url: img.url,
+            altText: img.altText || "Product image",
+            displayOrder: img.displayOrder || idx,
+            isPrimary: idx === 0,
+          },
+        }),
+      ),
+    );
+  },
+
+  async deleteProductImage(imageId: string) {
+    return await prisma.productImage.delete({
+      where: { id: imageId },
+    });
+  },
+
+  async addProductVariant(productId: string, variant: any) {
+    const product = await productsRepo.getById(productId);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    return await prisma.productVariant.create({
+      data: {
+        productId,
+        size: variant.size,
+        color: variant.color,
+        sku: variant.sku,
+        price: variant.price,
+        stock: variant.stock || 0,
+      },
+    });
+  },
+
+  async updateProductVariant(variantId: string, data: any) {
+    return await prisma.productVariant.update({
+      where: { id: variantId },
+      data,
+    });
+  },
+
+  async deleteProductVariant(variantId: string) {
+    return await prisma.productVariant.delete({
+      where: { id: variantId },
+    });
+  },
+};
+
+// ====================================
+// USER SERVICE
+// ====================================
+export const userService = {
+  async getUserProfile(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        addresses: true,
+        orders: {
+          take: 10,
+          orderBy: { createdAt: "desc" },
+          include: { items: true },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // Remove sensitive data
+    const { otp, otpExpiry, otpAttempts, ...safeUser } = user;
+    return safeUser;
+  },
+
+  async updateUserProfile(userId: string, data: any) {
+    const allowedFields = ["firstName", "lastName", "email", "avatar", "phone"];
+    const updateData = Object.fromEntries(
+      Object.entries(data).filter(([key]) => allowedFields.includes(key)),
+    );
+
+    return await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: { addresses: true },
+    });
+  },
+
+  async createAddress(userId: string, data: any) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    // If this is the first address or marked as default, make it default
+    const addressCount = await prisma.address.count({
+      where: { userId },
+    });
+
+    return await prisma.address.create({
+      data: {
+        ...data,
+        userId,
+        isDefault: addressCount === 0 || data.isDefault,
+      },
+    });
+  },
+
+  async updateAddress(addressId: string, userId: string, data: any) {
+    const address = await prisma.address.findUnique({
+      where: { id: addressId },
+    });
+
+    if (!address || address.userId !== userId) {
+      throw new ApiError(404, "Address not found");
+    }
+
+    // If making default, unset other defaults
+    if (data.isDefault) {
+      await prisma.address.updateMany({
+        where: { userId, id: { not: addressId } },
+        data: { isDefault: false },
+      });
+    }
+
+    return await prisma.address.update({
+      where: { id: addressId },
+      data,
+    });
+  },
+
+  async deleteAddress(addressId: string, userId: string) {
+    const address = await prisma.address.findUnique({
+      where: { id: addressId },
+    });
+
+    if (!address || address.userId !== userId) {
+      throw new ApiError(404, "Address not found");
+    }
+
+    return await prisma.address.delete({
+      where: { id: addressId },
+    });
+  },
+
+  async getUserOrders(userId: string, page: number = 1) {
+    return await ordersRepo.getByUserId(userId, page);
+  },
+};
+
+// ====================================
+// REVIEW SERVICE
+// ====================================
+export const reviewService = {
+  async createReview(userId: string, data: any) {
+    const product = await productsRepo.getById(data.productId);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    // Check if user already reviewed
+    const existing = await prisma.review.findUnique({
+      where: { userId_productId: { userId, productId: data.productId } },
+    });
+
+    if (existing) {
+      throw new ApiError(400, "You already reviewed this product");
+    }
+
+    return await prisma.review.create({
+      data: {
+        ...data,
+        userId,
+        isVerified: true, // Mark as verified from authenticated user
+      },
+      include: { user: { select: { firstName: true, avatar: true } } },
+    });
+  },
+
+  async updateReview(reviewId: string, userId: string, data: any) {
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review || review.userId !== userId) {
+      throw new ApiError(404, "Review not found");
+    }
+
+    return await prisma.review.update({
+      where: { id: reviewId },
+      data: {
+        rating: data.rating,
+        comment: data.comment,
+      },
+    });
+  },
+
+  async deleteReview(reviewId: string, userId: string) {
+    const review = await prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+
+    if (!review || review.userId !== userId) {
+      throw new ApiError(404, "Review not found");
+    }
+
+    return await prisma.review.delete({
+      where: { id: reviewId },
+    });
+  },
+
+  async getProductReviews(
+    productId: string,
+    page: number = 1,
+    pageSize: number = 10,
+  ) {
+    const skip = (page - 1) * pageSize;
+
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { productId },
+        skip,
+        take: pageSize,
+        include: {
+          user: { select: { firstName: true, lastName: true, avatar: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.review.count({ where: { productId } }),
+    ]);
+
+    return {
+      data: reviews,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  },
+};
+
+// ====================================
+// WISHLIST SERVICE
+// ====================================
+export const wishlistService = {
+  async addToWishlist(userId: string, productId: string) {
+    const product = await productsRepo.getById(productId);
+    if (!product) {
+      throw new ApiError(404, "Product not found");
+    }
+
+    const existing = await prisma.wishlistItem.findUnique({
+      where: { userId_productId: { userId, productId } },
+    });
+
+    if (existing) {
+      throw new ApiError(400, "Already in wishlist");
+    }
+
+    return await prisma.wishlistItem.create({
+      data: { userId, productId },
+      include: { product: true },
+    });
+  },
+
+  async removeFromWishlist(userId: string, productId: string) {
+    const item = await prisma.wishlistItem.findUnique({
+      where: { userId_productId: { userId, productId } },
+    });
+
+    if (!item) {
+      throw new ApiError(404, "Item not in wishlist");
+    }
+
+    return await prisma.wishlistItem.delete({
+      where: { id: item.id },
+    });
+  },
+
+  async getWishlist(userId: string, page: number = 1) {
+    const skip = (page - 1) * 20;
+
+    const [items, total] = await Promise.all([
+      prisma.wishlistItem.findMany({
+        where: { userId },
+        skip,
+        take: 20,
+        include: { product: { include: { images: { take: 1 } } } },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.wishlistItem.count({ where: { userId } }),
+    ]);
+
+    return {
+      data: items,
+      total,
+      page,
+      pageSize: 20,
+      totalPages: Math.ceil(total / 20),
+    };
+  },
+};
+
+// ====================================
+// ADMIN SERVICE
+// ====================================
+export const adminService = {
+  async getAllOrders(page: number = 1, filters?: any) {
+    const skip = (page - 1) * 10;
+    const where: any = {};
+
+    if (filters?.status) {
+      where.status = filters.status;
+    }
+
+    if (filters?.search) {
+      where.OR = [
+        { orderNumber: { contains: filters.search } },
+        { user: { phone: { contains: filters.search } } },
+      ];
+    }
+
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        where,
+        skip,
+        take: 10,
+        include: {
+          user: { select: { id: true, phone: true, firstName: true } },
+          items: { include: { product: true } },
+          payments: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.order.count({ where }),
+    ]);
+
+    return {
+      data: orders,
+      total,
+      page,
+      pageSize: 10,
+      totalPages: Math.ceil(total / 10),
+    };
+  },
+
+  async updateOrderStatus(orderId: string, status: string) {
+    const order = await ordersRepo.getById(orderId);
+    if (!order) {
+      throw new ApiError(404, "Order not found");
+    }
+
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: { status },
+      include: {
+        items: { include: { product: true } },
+        user: true,
+        payments: true,
+      },
+    });
+  },
+
+  async addTrackingNumber(orderId: string, trackingNumber: string) {
+    const order = await ordersRepo.getById(orderId);
+    if (!order) {
+      throw new ApiError(404, "Order not found");
+    }
+
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: { trackingNumber },
+    });
+  },
+
+  async getAllUsers(page: number = 1) {
+    return await prisma.user.findMany();
+  },
+
+  async getUserDetails(userId: string) {
+    const user = await userService.getUserProfile(userId);
+    return user;
+  },
+
+  async getAllCategories() {
+    return await prisma.category.findMany({
+      include: { _count: { select: { products: true } } },
+      orderBy: { displayOrder: "asc" },
+    });
+  },
+
+  async createCategory(data: any) {
+    return await prisma.category.create({
+      data,
+    });
+  },
+
+  async updateCategory(categoryId: string, data: any) {
+    return await prisma.category.update({
+      where: { id: categoryId },
+      data,
+    });
+  },
+
+  async deleteCategory(categoryId: string) {
+    return await prisma.category.delete({
+      where: { id: categoryId },
+    });
+  },
+
+  async getInventoryReport() {
+    const products = await prisma.product.findMany({
+      where: { status: "ACTIVE" },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        totalStock: true,
+        reservedStock: true,
+        availableStock: true,
+        reorderLevel: true,
+      },
+    });
+
+    const lowStock = products.filter((p) => p.availableStock <= p.reorderLevel);
+
+    return {
+      total: products.length,
+      lowStock: lowStock.length,
+      products,
+      lowStockProducts: lowStock,
+    };
+  },
 };

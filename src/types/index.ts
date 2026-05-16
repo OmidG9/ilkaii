@@ -241,3 +241,27 @@ export interface Review {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// ====================================
+// AUTH TYPES
+// ====================================
+export interface AuthUser {
+  id: string;
+  phone: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  avatar?: string;
+  role: "CUSTOMER" | "ADMIN" | "VENDOR";
+  isVerified: boolean;
+}
+
+export interface CreateOrder {
+  items: Array<{
+    productId: string;
+    variantId?: string;
+    quantity: number;
+  }>;
+  deliveryAddressId: string;
+  paymentMethod: PaymentMethod;
+}
