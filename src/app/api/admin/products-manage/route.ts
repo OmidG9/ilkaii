@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { createProductSchema } from "@/lib/validators";
-import {
-  successResponse,
-  handleApiError,
-  ApiError,
-} from "@/lib/utils";
+import { successResponse, handleApiError, ApiError } from "@/lib/utils";
 import { auth } from "@/auth";
 
 async function checkAdminAccess() {
