@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FA } from "@/lib/translations";
 
 interface User {
   id: string;
@@ -45,11 +46,13 @@ export default function UsersPage() {
   }
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">Users</h2>
+    <div className="font-persian">
+      <h2 className="text-3xl font-bold text-gray-900 mb-6 font-serif-persian">
+        {FA.admin.users}
+      </h2>
 
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8 font-persian">{FA.common.loading}</div>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -57,22 +60,22 @@ export default function UsersPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Name
+                    نام
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Phone
+                    تلفن
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Email
+                    ایمیل
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Role
+                    نقش
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Verified
+                    تایید شده
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Joined
+                    تاریخ عضویت
                   </th>
                 </tr>
               </thead>
@@ -82,13 +85,13 @@ export default function UsersPage() {
                     <td className="px-6 py-4 text-sm text-gray-900 font-semibold">
                       {user.firstName && user.lastName
                         ? `${user.firstName} ${user.lastName}`
-                        : "N/A"}
+                        : "ندارد"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
                       {user.phone}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {user.email || "N/A"}
+                      {user.email || "ندارد"}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
@@ -96,20 +99,14 @@ export default function UsersPage() {
                           user.role === "ADMIN" ? "bg-red-500" : "bg-blue-500"
                         }`}
                       >
-                        {user.role}
+                        {user.role === "ADMIN" ? "مدیر" : "کاربر"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded text-white text-xs font-semibold ${
-                          user.isVerified ? "bg-green-500" : "bg-gray-500"
-                        }`}
-                      >
-                        {user.isVerified ? "Yes" : "No"}
-                      </span>
+                      {user.isVerified ? "✓" : "✗"}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(user.createdAt).toLocaleDateString()}
+                      {new Date(user.createdAt).toLocaleDateString("fa-IR")}
                     </td>
                   </tr>
                 ))}

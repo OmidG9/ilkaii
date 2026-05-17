@@ -1,37 +1,72 @@
 import { NextRequest } from "next/server";
-import { addressesRepo } from "@/lib/repositories";
+import prisma from "@/lib/prisma";
 import { updateAddressSchema } from "@/lib/validators";
 import { successResponse, handleApiError, ApiError } from "@/lib/utils";
-import prisma from "@/lib/prisma";
+import { auth } from "@/auth";
 
-async function getUserId(req: NextRequest): Promise<string> {
-  const userId = req.headers.get("x-user-id");
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized");
-  }
-  return userId;
-}
-
-export async function PATCH(
-  req: NextRequest,
+export async function GET(
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getUserId(req);
-    const { id } = await params;
-    const body = await req.json();
-    const data = updateAddressSchema.parse(body);
+    const session = await auth();
 
-    // Verify address belongs to user
+    if (!session?.user?.id) {
+      throw new ApiError(401, "Unauthorized - Please login first");
+    }
+
+    const { id } = await params;
+
     const address = await prisma.address.findUnique({
       where: { id },
     });
 
-    if (!address || address.userId !== userId) {
+    if (!address || address.userId !== session.user.id) {
       throw new ApiError(404, "Address not found");
     }
 
-    const updated = await addressesRepo.update(id, data);
+    return successResponse(address);
+  } catch (error) {
+    return handleApiError(error);
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      throw new ApiError(401, "Unauthorized - Please login first");
+    }
+
+    const { id } = await params;
+    const body = await req.json();
+    const data = updateAddressSchema.parse(body);
+
+    const address = await prisma.address.findUnique({
+      where: { id },
+    });
+
+    if (!address || address.userId !== session.user.id) {
+      throw new ApiError(404, "Address not found");
+    }
+
+    // If marking as default, unmark others
+    if (data.isDefault && !address.isDefault) {
+      await prisma.address.updateMany({
+        where: { userId: session.user.id, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    const updated = await prisma.address.update({
+      where: { id },
+      data,
+    });
+
     return successResponse(updated, "Address updated successfully");
   } catch (error) {
     return handleApiError(error);
@@ -43,19 +78,26 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await getUserId(req);
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      throw new ApiError(401, "Unauthorized - Please login first");
+    }
+
     const { id } = await params;
 
-    // Verify address belongs to user
     const address = await prisma.address.findUnique({
       where: { id },
     });
 
-    if (!address || address.userId !== userId) {
+    if (!address || address.userId !== session.user.id) {
       throw new ApiError(404, "Address not found");
     }
 
-    await addressesRepo.delete(id);
+    await prisma.address.delete({
+      where: { id },
+    });
+
     return successResponse(null, "Address deleted successfully");
   } catch (error) {
     return handleApiError(error);

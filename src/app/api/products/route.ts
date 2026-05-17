@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
 import { productsService } from "@/services";
 import { productQuerySchema } from "@/lib/validators";
-import {
-  successResponse,
-  handleApiError,
-  paginatedResponse,
-} from "@/lib/utils";
+import { successResponse, handleApiError } from "@/lib/utils";
 import { ZodError } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -28,6 +24,9 @@ export async function GET(req: NextRequest) {
 
     return successResponse(result);
   } catch (error) {
+    if (error instanceof ZodError) {
+      return handleApiError(error);
+    }
     return handleApiError(error);
   }
 }

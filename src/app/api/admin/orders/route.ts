@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
       include: {
         items: { include: { product: true } },
         user: true,
-        payment: true,
       },
       orderBy: { createdAt: "desc" },
     });

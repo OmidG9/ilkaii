@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { useCartStore } from "@/store/cartStore";
+import { formatPrice } from "@/lib/currency";
 
 export default function CartPage() {
   const items = useCartStore((state) => state.items);
@@ -10,6 +12,17 @@ export default function CartPage() {
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
   const clearCart = useCartStore((state) => state.clearCart);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const activeItems = isMounted ? items : [];
+  const activeCartTotal = isMounted ? cartTotal : 0;
+  const motionProps = isMounted
+    ? { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } }
+    : {};
 
   return (
     <div className="container mx-auto px-4 py-12 lg:py-16">
@@ -24,7 +37,7 @@ export default function CartPage() {
             </p>
           </div>
 
-          {items.length === 0 ? (
+          {activeItems.length === 0 ? (
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -42,11 +55,10 @@ export default function CartPage() {
             </motion.div>
           ) : (
             <div className="space-y-6">
-              {items.map((item) => (
+              {activeItems.map((item) => (
                 <motion.div
                   key={item.id}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
+                  {...motionProps}
                   className="rounded-[32px] border border-luxury-border bg-white p-6 shadow-sm"
                 >
                   <div className="grid gap-5 sm:grid-cols-[120px_minmax(0,1fr)] lg:grid-cols-[180px_minmax(0,1fr)]">
@@ -66,7 +78,7 @@ export default function CartPage() {
                           {item.name}
                         </h2>
                         <p className="mt-3 text-sm text-luxury-text/70">
-                          {item.quantity} x ﷼{item.price}
+                          {item.quantity} x {formatPrice(item.price)}
                         </p>
                       </div>
 
@@ -111,7 +123,7 @@ export default function CartPage() {
                     جمع جزئی
                   </p>
                   <p className="mt-2 text-3xl font-semibold text-luxury-text">
-                    ﷼{cartTotal.toFixed(2)}
+                    {formatPrice(activeCartTotal)}
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-3">

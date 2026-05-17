@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, ShoppingCart, Heart, Search } from "lucide-react";
 import { useUIStore } from "@/store/uiStore";
 import { cn } from "@/lib/cn";
+import { FA } from "@/lib/translations";
 
 export function Navbar() {
   const { toggleDrawer } = useUIStore();
@@ -46,25 +47,31 @@ export function Navbar() {
               href="/shop"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              فروشگاه
+              {FA.navigation.shop}
             </Link>
             <Link
               href="/collections"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              مجموعه‌ها
+              {FA.navigation.collections}
             </Link>
             <Link
               href="/about"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              درباره
+              {FA.navigation.about}
             </Link>
             <Link
               href="/contact"
               className="text-luxury-text hover:text-luxury-primary transition-colors font-medium"
             >
-              تماس
+              {FA.navigation.contact}
+            </Link>
+            <Link
+              href="/auth/login"
+              className="rounded-full border border-luxury-border bg-white px-4 py-2 text-sm font-semibold text-luxury-text transition hover:border-luxury-primary hover:text-luxury-primary"
+            >
+              ورود / ثبت‌نام
             </Link>
           </div>
 
@@ -78,7 +85,7 @@ export function Navbar() {
                 "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
                 "transition-colors duration-200 active:scale-95",
               )}
-              aria-label="جستجو"
+              aria-label={FA.navigation.search}
             >
               <Search
                 size={24}
@@ -95,7 +102,7 @@ export function Navbar() {
                 "w-12 h-12 rounded-lg hover:bg-luxury-primary/5",
                 "transition-colors duration-200 active:scale-95",
               )}
-              aria-label="علاقه‌مندی‌ها"
+              aria-label={FA.navigation.wishlist}
             >
               <Heart
                 size={24}
@@ -113,7 +120,7 @@ export function Navbar() {
                 "transition-colors duration-200 active:scale-95",
                 "relative",
               )}
-              aria-label="سبد خرید"
+              aria-label={FA.navigation.cart}
             >
               <ShoppingCart
                 size={24}
@@ -132,7 +139,7 @@ export function Navbar() {
           <div className="pb-4 animate-slide-up md:hidden">
             <input
               type="search"
-              placeholder="جستجوی محصول..."
+              placeholder={FA.common.search}
               className={cn(
                 "w-full px-4 py-3 rounded-lg",
                 "bg-white border border-luxury-border",

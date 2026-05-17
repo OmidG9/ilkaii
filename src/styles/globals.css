@@ -2,8 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Fonts */
-@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap");
+/* Custom Fonts - Persian Fonts for Better Display */
+@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
 
 /* Root Variables */
 :root {
@@ -36,6 +37,41 @@ body {
   overflow-x: hidden;
   direction: rtl;
   text-align: right;
+  text-align: -webkit-right;
+}
+
+html[dir="rtl"] body {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL-specific adjustments */
+html[dir="rtl"] {
+  direction: rtl;
+}
+
+html[dir="rtl"] *:not(input):not(textarea) {
+  direction: inherit;
+  text-align: inherit;
+}
+
+/* Margin and padding RTL adjustments */
+html[dir="rtl"] .ml-auto {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+html[dir="rtl"] .mr-auto {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+html[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+html[dir="rtl"] .text-right {
+  text-align: left;
 }
 
 /* Typography */
@@ -45,10 +81,12 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Playfair Display", serif;
+  font-family: "Playfair Display", "Vazirmatn", serif;
   font-weight: 700;
   line-height: 1.2;
   color: var(--text);
+  direction: rtl;
+  text-align: right;
 }
 
 h1 {
@@ -176,6 +214,40 @@ html {
   .container {
     padding: 0 1rem;
   }
+}
+
+/* RTL Flex utilities */
+html[dir="rtl"] {
+  --tw-flex-direction: row-reverse;
+}
+
+/* RTL-specific utility classes */
+.rtl\:text-right {
+  text-align: right;
+}
+
+.rtl\:text-left {
+  text-align: left;
+}
+
+.rtl\:flex-row-reverse {
+  flex-direction: row-reverse;
+}
+
+/* Persian-specific typography classes */
+.font-persian {
+  font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
+}
+
+.font-serif-persian {
+  font-family: "Playfair Display", "Vazirmatn", serif;
+}
+
+/* Number formatting - Persian numerals */
+.persian-numbers {
+  font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
+  font-feature-settings: "pnum";
+  font-variant-numeric: proportional-nums;
 }
 
 /* Loading Animation */

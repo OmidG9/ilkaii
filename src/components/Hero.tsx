@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { FA } from "@/lib/translations";
 
 export function Hero() {
   return (
@@ -15,14 +16,13 @@ export function Hero() {
           <div className="flex flex-col justify-center py-12 md:py-20 space-y-6 md:space-y-8">
             <div className="space-y-4">
               <p className="text-luxury-secondary text-sm md:text-base font-semibold uppercase tracking-widest">
-                لوکس با نگاهی نو
+                {FA.hero.tagline}
               </p>
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-serif font-bold text-luxury-primary leading-tight">
-                زیبایی در هر تار
+                {FA.hero.title}
               </h1>
               <p className="text-luxury-text/80 text-base sm:text-lg md:text-xl leading-relaxed max-w-lg">
-                مجموعه‌ای منتخب از پوشاک زنانه لوکس. تجربه‌ای از ظرافت، کیفیت و
-                سبک ماندگار.
+                {FA.hero.subtitle}
               </p>
             </div>
 
@@ -39,7 +39,7 @@ export function Hero() {
                   "touch-target min-w-[120px]",
                 )}
               >
-                خرید کن
+                {FA.hero.shopButton}
                 <ChevronRight size={18} />
               </Link>
               <Link
@@ -54,7 +54,7 @@ export function Hero() {
                   "touch-target min-w-[120px]",
                 )}
               >
-                مشاهده مجموعه‌ها
+                {FA.hero.collectionsButton}
               </Link>
             </div>
 
@@ -62,15 +62,21 @@ export function Hero() {
             <div className="grid grid-cols-3 gap-4 pt-8 border-t border-luxury-border/30">
               <div>
                 <p className="text-2xl font-bold text-luxury-primary">۵۰۰+</p>
-                <p className="text-sm text-luxury-text/60">محصولات ممتاز</p>
+                <p className="text-sm text-luxury-text/60">
+                  {FA.hero.stats.products}
+                </p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-luxury-primary">۱۰K+</p>
-                <p className="text-sm text-luxury-text/60">مشتریان خوشحال</p>
+                <p className="text-sm text-luxury-text/60">
+                  {FA.hero.stats.customers}
+                </p>
               </div>
               <div>
                 <p className="text-2xl font-bold text-luxury-primary">۱۰۰٪</p>
-                <p className="text-sm text-luxury-text/60">اصلی</p>
+                <p className="text-sm text-luxury-text/60">
+                  {FA.hero.stats.authentic}
+                </p>
               </div>
             </div>
           </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { FA } from "@/lib/translations";
+import { formatPrice } from "@/lib/currency";
 
 interface Order {
   id: string;
@@ -49,29 +51,31 @@ export default function OrdersPage() {
   }
 
   return (
-    <div>
+    <div className="font-persian">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Orders</h2>
+        <h2 className="text-3xl font-bold text-gray-900 font-serif-persian">
+          {FA.admin.orders}
+        </h2>
         <select
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value);
             setPage(1);
           }}
-          className="px-4 py-2 border border-gray-300 rounded"
+          className="px-4 py-2 border border-gray-300 rounded font-persian"
         >
-          <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="CONFIRMED">Confirmed</option>
-          <option value="PROCESSING">Processing</option>
-          <option value="SHIPPED">Shipped</option>
-          <option value="DELIVERED">Delivered</option>
-          <option value="CANCELLED">Cancelled</option>
+          <option value="">تمام وضعیت‌ها</option>
+          <option value="PENDING">در انتظار</option>
+          <option value="CONFIRMED">تایید شده</option>
+          <option value="PROCESSING">در حال پردازش</option>
+          <option value="SHIPPED">ارسال شده</option>
+          <option value="DELIVERED">تحویل شده</option>
+          <option value="CANCELLED">لغو شده</option>
         </select>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8 font-persian">{FA.common.loading}</div>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -79,22 +83,22 @@ export default function OrdersPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Order #
+                    شماره سفارش
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Customer
+                    مشتری
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Amount
+                    مبلغ
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Payment
+                    وضعیت پرداخت
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Status
+                    وضعیت
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Date
+                    تاریخ
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
                     Actions
@@ -111,7 +115,7 @@ export default function OrdersPage() {
                       {order.user.firstName || order.user.phone}
                     </td>
                     <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      ${order.totalAmount.toLocaleString()}
+                      {formatPrice(order.totalAmount, false)}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
@@ -121,7 +125,9 @@ export default function OrdersPage() {
                             : "bg-yellow-500"
                         }`}
                       >
-                        {order.paymentStatus}
+                        {order.paymentStatus === "COMPLETED"
+                          ? "تکمیل شده"
+                          : "در انتظار"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm">
@@ -134,18 +140,22 @@ export default function OrdersPage() {
                               : "bg-purple-500"
                         }`}
                       >
-                        {order.status}
+                        {order.status === "DELIVERED"
+                          ? "تحویل شده"
+                          : order.status === "PENDING"
+                            ? "در انتظار"
+                            : "در حال پردازش"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {new Date(order.createdAt).toLocaleDateString("fa-IR")}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <Link
                         href={`/admin/orders/${order.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        View
+                        مشاهده
                       </Link>
                     </td>
                   </tr>

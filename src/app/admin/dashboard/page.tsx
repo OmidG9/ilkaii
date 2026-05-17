@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FA } from "@/lib/translations";
+import { formatPrice } from "@/lib/currency";
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -24,21 +26,35 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div>
-      <h2 className="text-3xl font-bold mb-6 text-gray-900">Dashboard</h2>
+    <div className="font-persian">
+      <h2 className="text-3xl font-bold mb-6 text-gray-900 font-serif-persian">
+        {FA.admin.dashboard}
+      </h2>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-        <StatCard label="Total Orders" value={stats.totalOrders} icon="📋" />
         <StatCard
-          label="Revenue"
-          value={`$${stats.totalRevenue.toLocaleString()}`}
+          label={FA.admin.totalOrders}
+          value={stats.totalOrders}
+          icon="📋"
+        />
+        <StatCard
+          label={FA.admin.totalRevenue}
+          value={formatPrice(stats.totalRevenue)}
           icon="💰"
         />
-        <StatCard label="Products" value={stats.totalProducts} icon="📦" />
-        <StatCard label="Users" value={stats.totalUsers} icon="👥" />
         <StatCard
-          label="Pending Orders"
+          label={FA.admin.totalProducts}
+          value={stats.totalProducts}
+          icon="📦"
+        />
+        <StatCard
+          label={FA.admin.totalUsers}
+          value={stats.totalUsers}
+          icon="👥"
+        />
+        <StatCard
+          label={FA.admin.pendingOrders}
           value={stats.pendingOrders}
           icon="⏳"
           highlight
@@ -47,17 +63,21 @@ export default function AdminDashboard() {
 
       {/* Charts and Tables */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-bold mb-4">Recent Orders</h3>
+        <div className="bg-white p-6 rounded-lg shadow font-persian">
+          <h3 className="text-lg font-bold mb-4 font-serif-persian">
+            {FA.admin.recentOrders}
+          </h3>
           <div className="text-gray-500 text-center py-8">
-            Chart will be implemented with Chart.js or Recharts
+            نمودار با استفاده از Chart.js یا Recharts پیاده‌سازی خواهد شد
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-bold mb-4">Sales Trend</h3>
+        <div className="bg-white p-6 rounded-lg shadow font-persian">
+          <h3 className="text-lg font-bold mb-4 font-serif-persian">
+            {FA.admin.salesTrend}
+          </h3>
           <div className="text-gray-500 text-center py-8">
-            Chart will be implemented with Chart.js or Recharts
+            نمودار با استفاده از Chart.js یا Recharts پیاده‌سازی خواهد شد
           </div>
         </div>
       </div>
@@ -78,7 +98,7 @@ function StatCard({
 }) {
   return (
     <div
-      className={`p-6 rounded-lg shadow ${
+      className={`p-6 rounded-lg shadow font-persian ${
         highlight ? "bg-orange-50 border-2 border-orange-400" : "bg-white"
       }`}
     >

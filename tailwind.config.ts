@@ -8,6 +8,11 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Vazirmatn", "Tahoma", "Arial", "sans-serif"],
+        serif: ["Playfair Display", "serif"],
+        persian: ["Vazirmatn", "IRANSansX", "Tahoma", "Arial", "sans-serif"],
+      },
       colors: {
         luxury: {
           primary: "#6B5E57",

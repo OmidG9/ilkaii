@@ -3,7 +3,7 @@ import { productsService } from "@/services";
 import { successResponse, handleApiError } from "@/lib/utils";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {

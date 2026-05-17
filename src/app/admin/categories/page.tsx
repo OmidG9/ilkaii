@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { FA } from "@/lib/translations";
 
 interface Category {
   id: string;
@@ -35,38 +36,40 @@ export default function CategoriesPage() {
   }
 
   return (
-    <div>
+    <div className="font-persian">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Categories</h2>
+        <h2 className="text-3xl font-bold text-gray-900 font-serif-persian">
+          {FA.admin.categories}
+        </h2>
         <Link
           href="/admin/categories/new"
-          className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+          className="px-4 py-2 bg-luxury-primary text-white rounded hover:bg-luxury-hover font-persian"
         >
-          + Add Category
+          + {FA.admin.addProduct}
         </Link>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8 font-persian">{FA.common.loading}</div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  Name
+                  نام
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  Slug
+                  شناسه
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  Products
+                  محصولات
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  Status
+                  وضعیت
                 </th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  Actions
+                  اقدامات
                 </th>
               </tr>
             </thead>

@@ -2,23 +2,21 @@ import { NextRequest } from "next/server";
 import { cartService } from "@/services";
 import { removeFromCartSchema } from "@/lib/validators";
 import { successResponse, handleApiError, ApiError } from "@/lib/utils";
-
-async function getUserId(req: NextRequest): Promise<string> {
-  const userId = req.headers.get("x-user-id");
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized - No user ID");
-  }
-  return userId;
-}
+import { auth } from "@/auth";
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getUserId(req);
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      throw new ApiError(401, "Unauthorized - Please login first");
+    }
+
     const body = await req.json();
 
     const { cartItemId } = removeFromCartSchema.parse(body);
 
-    await cartService.removeFromCart(userId, cartItemId);
+    await cartService.removeFromCart(session.user.id, cartItemId);
 
     return successResponse(null, "Item removed from cart");
   } catch (error) {

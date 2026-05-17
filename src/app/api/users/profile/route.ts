@@ -1,36 +1,37 @@
 import { NextRequest } from "next/server";
-import { usersRepo } from "@/lib/repositories";
+import prisma from "@/lib/prisma";
 import { updateUserSchema } from "@/lib/validators";
 import { successResponse, handleApiError, ApiError } from "@/lib/utils";
-
-async function getUserId(req: NextRequest): Promise<string> {
-  const userId = req.headers.get("x-user-id");
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized");
-  }
-  return userId;
-}
+import { auth } from "@/auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const userId = await getUserId(req);
-    const user = await usersRepo.getById(userId);
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      throw new ApiError(401, "Unauthorized - Please login first");
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        phone: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        role: true,
+        isVerified: true,
+        createdAt: true,
+      },
+    });
 
     if (!user) {
       throw new ApiError(404, "User not found");
     }
 
-    return successResponse({
-      id: user.id,
-      phone: user.phone,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatar: user.avatar,
-      role: user.role,
-      isVerified: user.isVerified,
-      createdAt: user.createdAt,
-    });
+    return successResponse(user);
   } catch (error) {
     return handleApiError(error);
   }
@@ -38,21 +39,32 @@ export async function GET(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const userId = await getUserId(req);
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      throw new ApiError(401, "Unauthorized - Please login first");
+    }
+
     const body = await req.json();
     const data = updateUserSchema.parse(body);
 
-    const user = await usersRepo.update(userId, data);
-
-    return successResponse({
-      id: user.id,
-      phone: user.phone,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      avatar: user.avatar,
-      role: user.role,
+    const user = await prisma.user.update({
+      where: { id: session.user.id },
+      data,
+      select: {
+        id: true,
+        phone: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatar: true,
+        role: true,
+        isVerified: true,
+        createdAt: true,
+      },
     });
+
+    return successResponse(user, "Profile updated successfully");
   } catch (error) {
     return handleApiError(error);
   }

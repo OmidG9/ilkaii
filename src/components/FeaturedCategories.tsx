@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { FA } from "@/lib/translations";
 
 interface Category {
   id: string;
@@ -57,7 +58,7 @@ export function FeaturedCategories() {
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div className="space-y-3">
             <p className="text-luxury-secondary text-sm md:text-base font-semibold uppercase tracking-widest">
-              مجموعه‌ها
+              {FA.navigation.collections}
             </p>
             <h2 className="text-4xl sm:text-5xl md:text-5xl font-serif font-bold text-luxury-primary leading-tight">
               جستجو با دسته‌بندی
@@ -78,7 +79,7 @@ export function FeaturedCategories() {
               "touch-target whitespace-nowrap",
             )}
           >
-            مشاهده همه
+            {FA.common.close}
             <ArrowRight size={18} />
           </Link>
         </div>

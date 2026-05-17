@@ -265,7 +265,6 @@ export const ordersRepo = {
         items: { include: { product: true, variant: true } },
         user: true,
         deliveryAddress: true,
-        payments: true,
       },
     });
   },
@@ -277,7 +276,6 @@ export const ordersRepo = {
         items: { include: { product: true, variant: true } },
         user: true,
         deliveryAddress: true,
-        payments: true,
       },
     });
   },
@@ -289,42 +287,33 @@ export const ordersRepo = {
         items: { include: { product: true, variant: true } },
         user: true,
         deliveryAddress: true,
-        payments: true,
       },
     });
   },
 
-  async getByUserId(
-    userId: string,
-    page: number = 1,
-    pageSize: number = 10,
-  ): Promise<PaginatedResponse<any>> {
+  async getByUserId(userId: string, page: number = 1, pageSize: number = 10) {
     const skip = (page - 1) * pageSize;
-
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: { userId },
-        skip,
-        take: pageSize,
         include: {
           items: { include: { product: true } },
           deliveryAddress: true,
-          payments: true,
         },
         orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
       }),
       prisma.order.count({ where: { userId } }),
     ]);
-
-    const totalPages = Math.ceil(total / pageSize);
 
     return {
       data: orders,
       total,
       page,
       pageSize,
-      totalPages,
-      hasMore: page < totalPages,
+      totalPages: Math.ceil(total / pageSize),
+      hasMore: page < Math.ceil(total / pageSize),
     };
   },
 
@@ -333,10 +322,101 @@ export const ordersRepo = {
       where: { id },
       data,
       include: {
-        items: { include: { product: true, variant: true } },
-        user: true,
-        payments: true,
+        items: { include: { product: true } },
+        deliveryAddress: true,
       },
+    });
+  },
+
+  async updateStatus(id: string, status: string) {
+    return this.update(id, { status });
+  },
+
+  async updatePaymentStatus(id: string, paymentStatus: string) {
+    return this.update(id, { paymentStatus });
+  },
+
+  async getAll(page: number = 1, pageSize: number = 10) {
+    const skip = (page - 1) * pageSize;
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        include: {
+          items: true,
+          user: { select: { id: true, phone: true, email: true } },
+          deliveryAddress: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.order.count(),
+    ]);
+
+    return {
+      data: orders,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+      hasMore: page < Math.ceil(total / pageSize),
+    };
+  },
+};
+
+// ====================================
+// REVIEWS REPOSITORY
+// ====================================
+export const reviewsRepo = {
+  async create(data: any) {
+    return prisma.review.create({
+      data,
+      include: { user: true, product: true },
+    });
+  },
+
+  async getByProductId(productId: string, page: number = 1) {
+    const pageSize = 10;
+    const skip = (page - 1) * pageSize;
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { productId },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.review.count({ where: { productId } }),
+    ]);
+
+    return {
+      data: reviews,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  },
+
+  async getByUserId(userId: string) {
+    return prisma.review.findMany({
+      where: { userId },
+      include: { product: true },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  async update(id: string, data: any) {
+    return prisma.review.update({
+      where: { id },
+      data,
+    });
+  },
+
+  async delete(id: string) {
+    return prisma.review.delete({
+      where: { id },
     });
   },
 };

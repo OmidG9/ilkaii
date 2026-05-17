@@ -126,24 +126,20 @@ export function MobileDrawer() {
 
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-luxury-border bg-luxury-background space-y-3">
-          <button
+          <Link
+            href="/auth/login"
+            onClick={closeDrawer}
             className={cn(
-              "w-full px-4 py-3 rounded-lg",
+              "inline-flex w-full items-center justify-center px-4 py-3 rounded-lg",
               "bg-luxury-primary text-white font-medium",
               "hover:bg-luxury-hover transition-colors duration-200",
-              "touch-target text-base",
+              "touch-target text-base text-center",
             )}
           >
-            ورود
-          </button>
+            ورود / ثبت‌نام
+          </Link>
           <p className="text-xs text-luxury-text/60 text-center">
-            حساب کاربری ندارید؟{" "}
-            <Link
-              href="/signup"
-              className="text-luxury-primary hover:underline font-medium"
-            >
-              ثبت نام
-            </Link>
+            با شماره موبایل وارد شوید و خرید را آسان کنید.
           </p>
         </div>
       </div>

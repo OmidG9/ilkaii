@@ -99,6 +99,76 @@ export function calculateSkip(page: number, pageSize: number): number {
   return (Math.max(1, page) - 1) * pageSize;
 }
 
+// ====================================
+// ORDER HELPERS
+// ====================================
+export interface OrderTotals {
+  subtotal: number;
+  taxAmount: number;
+  shippingCost: number;
+  totalAmount: number;
+}
+
+export function canReserveStock(
+  availableStock: number,
+  quantity: number,
+): boolean {
+  return availableStock >= quantity && quantity > 0;
+}
+
+// ====================================
+// VALIDATION HELPERS
+// ====================================
+export function validateEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+export function validatePhone(phone: string): boolean {
+  // Iranian phone number format: +98XXXXXXXXXX or 0XXXXXXXXXX
+  const phoneRegex = /^(?:\+98|0)9\d{9}$/;
+  return phoneRegex.test(phone.replace(/\D/g, ""));
+}
+
+export function validatePostalCode(postalCode: string): boolean {
+  // Iranian postal code: 10 digits
+  return /^\d{10}$/.test(postalCode.replace(/\D/g, ""));
+}
+
+// ====================================
+// PRICE HELPERS
+// ====================================
+export function formatPrice(price: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(price);
+}
+
+export function parsePriceFromToman(tomans: number): number {
+  // Convert Toman to Iranian Rial (1 Toman = 10 Rial)
+  return tomans * 10;
+}
+
+// ====================================
+// STRING HELPERS
+// ====================================
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function truncateText(text: string, length: number): string {
+  if (text.length <= length) return text;
+  return text.slice(0, length) + "...";
+}
+
 export function validatePagination(
   page: number,
   pageSize: number,
@@ -117,13 +187,6 @@ export function calculateAvailableStock(
   reservedStock: number,
 ): number {
   return Math.max(0, totalStock - reservedStock);
-}
-
-export function canReserveStock(
-  availableStock: number,
-  requestedQuantity: number,
-): boolean {
-  return availableStock >= requestedQuantity;
 }
 
 // ====================================

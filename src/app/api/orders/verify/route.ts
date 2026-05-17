@@ -1,15 +1,7 @@
 import { NextRequest } from "next/server";
 import { orderService } from "@/services";
 import { verifyPaymentSchema } from "@/lib/validators";
-import { successResponse, handleApiError, ApiError } from "@/lib/utils";
-
-async function getUserId(req: NextRequest): Promise<string> {
-  const userId = req.headers.get("x-user-id");
-  if (!userId) {
-    throw new ApiError(401, "Unauthorized - No user ID");
-  }
-  return userId;
-}
+import { successResponse, handleApiError } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,18 +25,18 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET endpoint for callback
+// GET endpoint for Zarinpal callback
 export async function GET(req: NextRequest) {
   try {
     const authority = req.nextUrl.searchParams.get("Authority");
     const status = req.nextUrl.searchParams.get("Status");
 
     if (!authority) {
-      throw new ApiError(400, "Missing authority parameter");
+      throw new Error("Missing authority parameter");
     }
 
     if (status !== "OK") {
-      throw new ApiError(400, "Payment cancelled by user");
+      throw new Error("Payment cancelled by user");
     }
 
     // Verify payment
@@ -61,11 +53,8 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     // Redirect to error page
     const baseUrl = req.nextUrl.origin;
-    let errorMessage = "Payment verification failed";
-
-    if (error instanceof ApiError) {
-      errorMessage = error.message;
-    }
+    const errorMessage =
+      error instanceof Error ? error.message : "Payment verification failed";
 
     return new Response(null, {
       status: 302,

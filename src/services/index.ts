@@ -201,12 +201,16 @@ export const orderService = {
         });
 
         // Update order
-        await tx.order.update({
+        const updatedOrder = await tx.order.update({
           where: { id: payment.orderId },
           data: {
             paymentStatus: "COMPLETED",
             status: "CONFIRMED",
             transactionId: data.data.ref_id?.toString(),
+          },
+          include: {
+            items: { include: { product: true } },
+            user: true,
           },
         });
 
@@ -226,7 +230,7 @@ export const orderService = {
           where: { userId: order.userId },
         });
 
-        return { success: true, order, refId: data.data.ref_id };
+        return { success: true, order: updatedOrder, refId: data.data.ref_id };
       } else {
         // Payment failed
         await tx.payment.update({

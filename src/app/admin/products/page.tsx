@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { FA } from "@/lib/translations";
+import { formatPrice } from "@/lib/currency";
 
 interface Product {
   id: string;
@@ -44,19 +46,21 @@ export default function ProductsPage() {
   }
 
   return (
-    <div>
+    <div className="font-persian">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Products</h2>
+        <h2 className="text-3xl font-bold text-gray-900 font-serif-persian">
+          {FA.admin.products}
+        </h2>
         <Link
           href="/admin/products/new"
-          className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700"
+          className="px-4 py-2 bg-luxury-primary text-white rounded hover:bg-luxury-hover font-persian"
         >
-          + Add Product
+          + {FA.admin.addProduct}
         </Link>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="text-center py-8 font-persian">{FA.common.loading}</div>
       ) : (
         <>
           <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -64,22 +68,22 @@ export default function ProductsPage() {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Product Name
+                    {FA.admin.productName}
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    SKU
+                    {FA.admin.productSku}
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Price
+                    {FA.admin.productPrice}
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Stock
+                    {FA.admin.productStock}
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Status
+                    {FA.common.edit}
                   </th>
                   <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Actions
+                    {FA.common.delete}
                   </th>
                 </tr>
               </thead>
@@ -93,7 +97,7 @@ export default function ProductsPage() {
                       {product.sku}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900 font-semibold">
-                      ${product.basePrice}
+                      {formatPrice(product.basePrice, false)}
                     </td>
                     <td className="px-6 py-4 text-sm">
                       <span
@@ -112,11 +116,11 @@ export default function ProductsPage() {
                       <span
                         className={`px-3 py-1 rounded text-white text-xs font-semibold ${
                           product.status === "ACTIVE"
-                            ? "bg-blue-500"
+                            ? "bg-green-500"
                             : "bg-gray-500"
                         }`}
                       >
-                        {product.status}
+                        {product.status === "ACTIVE" ? "فعال" : "غیرفعال"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm space-x-2">
@@ -124,17 +128,17 @@ export default function ProductsPage() {
                         href={`/admin/products/${product.id}`}
                         className="text-blue-600 hover:underline"
                       >
-                        Edit
+                        {FA.common.edit}
                       </Link>
                       <button
                         onClick={() => {
-                          if (confirm("Delete this product?")) {
+                          if (confirm("حذف این محصول؟")) {
                             // TODO: Implement delete
                           }
                         }}
                         className="text-red-600 hover:underline"
                       >
-                        Delete
+                        {FA.common.delete}
                       </button>
                     </td>
                   </tr>

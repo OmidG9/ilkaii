@@ -33,7 +33,10 @@ export async function GET(req: NextRequest) {
         select: { totalAmount: true, createdAt: true },
       });
 
-      const totalSales = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+      const totalSales = orders.reduce(
+        (sum, o) => sum + Number(o.totalAmount),
+        0,
+      );
       const orderCount = orders.length;
 
       return successResponse({
