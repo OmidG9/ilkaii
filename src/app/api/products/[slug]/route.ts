@@ -1,16 +1,13 @@
-import { NextRequest } from "next/server";
-import { productsService } from "@/services";
-import { successResponse, handleApiError } from "@/lib/utils";
+import { ok, route } from "@/lib/http";
+import { getProductBySlug } from "@/services/catalog";
+import { listProductReviews } from "@/services/account";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> },
-) {
-  try {
-    const { slug } = await params;
-    const product = await productsService.getProduct(slug);
-    return successResponse(product);
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+export const runtime = "nodejs";
+
+type Context = { params: Promise<{ slug: string }> };
+
+export const GET = route(async (_request, context) => {
+  const { slug } = await (context as Context).params;
+  const product = await getProductBySlug(slug);
+  return ok({ ...product, reviews: await listProductReviews(product.id) });
+});

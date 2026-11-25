@@ -1,47 +1,66 @@
-import "@/styles/globals.css";
 import type { Metadata, Viewport } from "next";
-import { Navbar } from "@/components/Navbar";
-import { MobileDrawer } from "@/components/MobileDrawer";
-
-export const metadata: Metadata = {
-  title: "ایلکایی | فروشگاه پوشاک لوکس",
-  description:
-    "فروشگاه پوشاک زنانه لوکس با طراحی‌های منحصر به فرد و کیفیت ممتاز.",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  themeColor: "#6B5E57",
-  icons: {
-    icon: "/favicon.ico",
-  },
-};
+import "@/styles/globals.css";
+import { getSiteConfig } from "@/config/site";
+import { themeVariables } from "@/config/theme";
+import { CartProvider } from "@/components/cart-provider";
+import { JsonLd } from "@/components/json-ld";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-  viewportFit: "cover",
+  themeColor: "#6B5E57",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export async function generateMetadata(): Promise<Metadata> {
+  const site = await getSiteConfig();
+  return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"),
+    title: { default: `${site.name} | ${site.tagline}`, template: `%s | ${site.name}` },
+    description: site.description,
+    openGraph: {
+      type: "website",
+      locale: "fa_IR",
+      siteName: site.name,
+      title: `${site.name} | ${site.tagline}`,
+      description: site.description,
+    },
+    robots: { index: true, follow: true },
+  };
+}
+
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const site = await getSiteConfig();
+  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${base}/#website`,
+        url: base,
+        name: site.name,
+        description: site.description,
+        inLanguage: "fa-IR",
+      },
+      {
+        "@type": "Organization",
+        "@id": `${base}/#organization`,
+        name: site.name,
+        url: base,
+        email: site.contact.email,
+        telephone: site.contact.phone,
+        address: { "@type": "PostalAddress", addressLocality: site.contact.address, addressCountry: "IR" },
+      },
+    ],
+  };
   return (
     <html lang="fa" dir="rtl">
       <head>
-        <meta charSet="utf-8" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
+        <style dangerouslySetInnerHTML={{ __html: themeVariables(site) }} />
+        <JsonLd data={structuredData} />
       </head>
-      <body className="bg-luxury-background text-luxury-text antialiased">
-        <Navbar />
-        <MobileDrawer />
-        <main>{children}</main>
+      <body>
+        <CartProvider>{children}</CartProvider>
       </body>
     </html>
   );

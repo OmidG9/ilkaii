@@ -40,6 +40,16 @@ yarn-error.log*
 # OS
 Thumbs.db
 
-# Prisma
-/prisma/migrations/
+# Prisma generated artifacts
+/prisma/*.db
+/prisma/*.db-journal
+
+# Runtime uploads
+/public/uploads/
+
+# Generated development assets / build cache
+/public/images/seed/
+tsconfig.tsbuildinfo
+.eslintcache
+
 ilkaii.zip

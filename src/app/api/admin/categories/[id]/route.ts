@@ -1,44 +1,27 @@
 import { NextRequest } from "next/server";
-import { adminService } from "@/services";
-import { successResponse, handleApiError, ApiError } from "@/lib/utils";
+import { audit } from "@/lib/audit";
+import { assertSameOrigin, ok, parseBody, route } from "@/lib/http";
+import { requirePermission } from "@/lib/auth/session";
+import { categorySchema } from "@/lib/validation";
+import { deleteCategory, updateCategory } from "@/services/catalog";
 
-async function isAdmin(req: NextRequest): Promise<boolean> {
-  const role = req.headers.get("x-user-role");
-  return role === "ADMIN";
-}
+export const runtime = "nodejs";
+type Context = { params: Promise<{ id: string }> };
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    if (!(await isAdmin(req))) {
-      throw new ApiError(403, "Forbidden - Admin access required");
-    }
+export const PATCH = route(async (request: NextRequest, context) => {
+  assertSameOrigin(request);
+  const user = await requirePermission("product.write");
+  const { id } = await (context as Context).params;
+  const category = await updateCategory(id, await parseBody(request, categorySchema));
+  await audit({ actorId: user.id, action: "category.updated", entity: "Category", entityId: id });
+  return ok({ id: category.id });
+});
 
-    const { id } = await params;
-    const body = await req.json();
-
-    const category = await adminService.updateCategory(id, body);
-    return successResponse(category, "Category updated successfully");
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
-
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    if (!(await isAdmin(req))) {
-      throw new ApiError(403, "Forbidden - Admin access required");
-    }
-
-    const { id } = await params;
-    const category = await adminService.deleteCategory(id);
-    return successResponse(category, "Category deleted successfully");
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+export const DELETE = route(async (request: NextRequest, context) => {
+  assertSameOrigin(request);
+  const user = await requirePermission("product.write");
+  const { id } = await (context as Context).params;
+  await deleteCategory(id);
+  await audit({ actorId: user.id, action: "category.deleted", entity: "Category", entityId: id });
+  return ok({ deleted: true });
+});

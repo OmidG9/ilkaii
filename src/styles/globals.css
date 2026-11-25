@@ -1,302 +1,65 @@
+@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Custom Fonts - Persian Fonts for Better Display */
-@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,600;1,700;1,800;1,900&display=swap");
-
-/* Root Variables */
 :root {
-  --primary: #6b5e57;
-  --secondary: #a89c94;
-  --background: #f5f1ed;
-  --text: #2b2b2b;
-  --border: #e8e3de;
-  --hover: #5a4d46;
+  --color-primary: #6b5e57;
+  --color-primary-rgb: 107 94 87;
+  --color-secondary: #a89c94;
+  --color-secondary-rgb: 168 156 148;
+  --color-background: #f5f1ed;
+  --color-background-rgb: 245 241 237;
+  --color-text: #2b2b2b;
+  --color-text-rgb: 43 43 43;
+  --color-border: #e8e3de;
+  --color-border-rgb: 232 227 222;
+  --color-hover: #5a4d46;
+  --color-hover-rgb: 90 77 70;
+  --color-surface: #ffffff;
+  --color-surface-rgb: 255 255 255;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-html {
-  font-size: 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  scroll-behavior: smooth;
-}
-
-body {
-  font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
-  background-color: var(--background);
-  color: var(--text);
-  line-height: 1.7;
-  overflow-x: hidden;
-  direction: rtl;
-  text-align: right;
-  text-align: -webkit-right;
-}
-
-html[dir="rtl"] body {
-  direction: rtl;
-  text-align: right;
-}
-
-/* RTL-specific adjustments */
-html[dir="rtl"] {
-  direction: rtl;
-}
-
-html[dir="rtl"] *:not(input):not(textarea) {
-  direction: inherit;
-  text-align: inherit;
-}
-
-/* Margin and padding RTL adjustments */
-html[dir="rtl"] .ml-auto {
-  margin-left: auto;
-  margin-right: 0;
-}
-
-html[dir="rtl"] .mr-auto {
-  margin-right: auto;
-  margin-left: 0;
-}
-
-html[dir="rtl"] .text-left {
-  text-align: right;
-}
-
-html[dir="rtl"] .text-right {
-  text-align: left;
-}
-
-/* Typography */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: "Playfair Display", "Vazirmatn", serif;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--text);
-  direction: rtl;
-  text-align: right;
-}
-
-h1 {
-  font-size: 2.5rem;
-  letter-spacing: -0.02em;
-}
-
-@media (max-width: 640px) {
-  h1 {
-    font-size: 1.875rem;
-  }
-}
-
-h2 {
-  font-size: 2rem;
-  margin-top: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-@media (max-width: 640px) {
-  h2 {
-    font-size: 1.5rem;
-  }
-}
-
-h3 {
-  font-size: 1.5rem;
-}
-
-@media (max-width: 640px) {
-  h3 {
-    font-size: 1.25rem;
-  }
-}
-
-p {
-  line-height: 1.75;
-  margin-bottom: 1rem;
-}
-
-/* Links */
-a {
-  color: var(--primary);
-  text-decoration: none;
-  transition: color 0.3s ease;
-}
-
-a:hover {
-  color: var(--hover);
-}
-
-/* Buttons */
-button {
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: none;
-  outline: none;
-}
-
-button:active {
-  transform: scale(0.98);
-}
-
-/* Touch Target Sizing */
-button,
-a[role="button"],
-input[type="button"],
-input[type="submit"],
-input[type="reset"] {
-  min-height: 44px;
-  min-width: 44px;
-  padding: 0.75rem 1rem;
-}
-
-/* Input Styles */
-input,
-textarea,
-select {
-  font-family: inherit;
-  font-size: 16px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0.75rem;
-  transition: border-color 0.3s ease;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(107, 94, 87, 0.1);
-}
-
-/* Image Optimization */
-img {
-  display: block;
-  max-width: 100%;
-  height: auto;
-}
-
-/* Smooth Scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Mobile Safe Area */
-@supports (padding: max(0px)) {
+@layer base {
+  html { scroll-behavior: smooth; }
   body {
-    padding-left: max(1rem, env(safe-area-inset-left));
-    padding-right: max(1rem, env(safe-area-inset-right));
+    @apply bg-canvas text-ink font-sans antialiased;
+    min-height: 100vh;
   }
-}
-
-/* Utility Classes */
-.container {
-  width: 100%;
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-@media (max-width: 640px) {
-  .container {
-    padding: 0 1rem;
+  :focus-visible {
+    outline: 3px solid var(--color-primary);
+    outline-offset: 3px;
+    border-radius: 4px;
   }
+  button, [role="button"], a { -webkit-tap-highlight-color: transparent; }
+  input, select, textarea { direction: rtl; }
+  input[dir="ltr"], select[dir="ltr"] { direction: ltr; }
+  h1, h2, h3, h4 { @apply font-sans font-semibold tracking-tight; }
+  ::selection { background: var(--color-secondary); color: white; }
 }
 
-/* RTL Flex utilities */
-html[dir="rtl"] {
-  --tw-flex-direction: row-reverse;
-}
-
-/* RTL-specific utility classes */
-.rtl\:text-right {
-  text-align: right;
-}
-
-.rtl\:text-left {
-  text-align: left;
-}
-
-.rtl\:flex-row-reverse {
-  flex-direction: row-reverse;
-}
-
-/* Persian-specific typography classes */
-.font-persian {
-  font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
-}
-
-.font-serif-persian {
-  font-family: "Playfair Display", "Vazirmatn", serif;
-}
-
-/* Number formatting - Persian numerals */
-.persian-numbers {
-  font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
-  font-feature-settings: "pnum";
-  font-variant-numeric: proportional-nums;
-}
-
-/* Loading Animation */
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
+@layer components {
+  .container-luxury { @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10; }
+  .surface-card { @apply rounded-luxury border border-line bg-surface shadow-soft; }
+  .field {
+    @apply w-full min-h-touch rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink
+           placeholder:text-ink/40 transition-colors hover:border-secondary focus:border-primary
+           focus:outline-none focus-visible:outline focus-visible:outline-2;
   }
-  100% {
-    background-position: 1000px 0;
+  .link-underline { @apply relative after:absolute after:bottom-0 after:right-0 after:h-px after:w-0 after:bg-current after:transition-all hover:after:w-full; }
+  .skeleton { @apply relative overflow-hidden rounded-xl bg-line/60; }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-l from-transparent via-white/50 to-transparent;
   }
+  .table-wrap { @apply w-full overflow-x-auto rounded-2xl border border-line bg-surface; }
+  .table-luxury { @apply w-full min-w-[640px] border-collapse text-sm; }
+  .table-luxury th { @apply whitespace-nowrap border-b border-line bg-canvas px-4 py-3 text-right font-semibold text-ink/70; }
+  .table-luxury td { @apply border-b border-line/70 px-4 py-3 align-middle; }
+  .table-luxury tr:last-child td { @apply border-b-0; }
 }
 
-.animate-shimmer {
-  animation: shimmer 2s infinite;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.05) 0%,
-    rgba(0, 0, 0, 0.1) 50%,
-    rgba(0, 0, 0, 0.05) 100%
-  );
-  background-size: 1000px 100%;
-}
-
-/* Fade In Animation */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.5s ease-in;
-}
-
-/* Slide Up Animation */
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-slide-up {
-  animation: slideUp 0.5s ease-out;
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

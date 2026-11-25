@@ -1,111 +1,63 @@
-"use client";
-
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { FA } from "@/lib/translations";
+import { requirePageAdmin } from "@/lib/auth/session";
+import { getSiteConfig } from "@/config/site";
+import { SignOutButton } from "@/components/sign-out-button";
+import { roleLabels } from "@/lib/labels";
 
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  const router = useRouter();
+const sections = [
+  { title: "کلی", links: [
+    { href: "/admin", label: "نمای کلی" },
+    { href: "/admin/audit", label: "گزارشها" },
+    { href: "/admin/settings", label: "تنظیمات سایت" },
+  ] },
+  { title: "فروشگاه", links: [
+    { href: "/admin/products", label: "محصولات" },
+    { href: "/admin/categories", label: "دستهبندیها" },
+    { href: "/admin/brands", label: "برندها" },
+    { href: "/admin/inventory", label: "موجودی" },
+    { href: "/admin/reviews", label: "نظرات" },
+  ] },
+  { title: "فروش", links: [
+    { href: "/admin/orders", label: "سفارشها" },
+    { href: "/admin/returns", label: "بازگشتها" },
+    { href: "/admin/customers", label: "مشتریان" },
+    { href: "/admin/coupons", label: "کدهای تخفیف" },
+  ] },
+];
 
-  // In production, verify admin role from session
-  const isAdmin = true; // TODO: Check from NextAuth session
+export const dynamic = "force-dynamic";
 
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-luxury-background">
-        <div className="text-center font-persian">
-          <h1 className="text-2xl font-bold text-red-600">
-            {FA.errors.unauthorized}
-          </h1>
-          <p className="text-gray-600 mt-2">{FA.errors.forbidden}</p>
-          <button
-            onClick={() => router.push("/")}
-            className="mt-4 px-4 py-2 bg-luxury-primary text-white rounded hover:bg-luxury-hover font-persian"
-          >
-            {FA.navigation.contact}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+export default async function AdminLayout({ children }: { children: ReactNode }) {
+  const [user, site] = await Promise.all([requirePageAdmin(), getSiteConfig()]);
   return (
-    <div className="flex h-screen bg-gray-100 font-persian">
-      {/* Sidebar */}
-      <aside className="w-64 bg-gray-900 text-white overflow-y-auto">
-        <div className="p-6 border-b border-gray-700">
-          <h2 className="text-2xl font-bold font-serif-persian">
-            {FA.admin.dashboard}
-          </h2>
-          <p className="text-sm text-gray-400 mt-1">پنل مدیریت</p>
-        </div>
-
-        <nav className="p-4 space-y-2">
-          <Link
-            href="/admin/dashboard"
-            className="block px-4 py-2 rounded hover:bg-gray-800 transition"
-          >
-            📊 {FA.admin.dashboard}
-          </Link>
-          <Link
-            href="/admin/products"
-            className="block px-4 py-2 rounded hover:bg-gray-800 transition"
-          >
-            📦 {FA.admin.products}
-          </Link>
-          <Link
-            href="/admin/orders"
-            className="block px-4 py-2 rounded hover:bg-gray-800 transition"
-          >
-            🛒 {FA.footer.orders}
-          </Link>
-          <Link
-            href="/admin/users"
-            className="block px-4 py-2 rounded hover:bg-gray-800 transition"
-          >
-            👥 {FA.admin.users}
-          </Link>
-          <Link
-            href="/admin/categories"
-            className="block px-4 py-2 rounded hover:bg-gray-800 transition"
-          >
-            🏷️ {FA.admin.categories}
-          </Link>
-          <hr className="my-4 border-gray-700" />
-          <button
-            onClick={() => router.push("/")}
-            className="w-full text-left px-4 py-2 rounded hover:bg-gray-800 transition text-gray-300"
-          >
-            🏠 بازگشت به فروشگاه
-          </button>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-        <header className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center font-persian">
-          <h1 className="text-2xl font-bold text-gray-900 font-serif-persian">
-            {FA.admin.dashboard}
-          </h1>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => router.push("/admin/profile")}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              ⚙️ تنظیمات
-            </button>
-            <button
-              onClick={() => router.push("/")}
-              className="text-red-600 hover:text-red-700 font-medium"
-            >
-              🚪 {FA.auth.logout}
-            </button>
+    <div className="min-h-screen bg-canvas">
+      <div className="mx-auto grid max-w-[1600px] lg:grid-cols-[260px_1fr]">
+        <aside className="h-fit border-b border-line bg-surface p-5 lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-l lg:overflow-y-auto">
+          <Link href="/" className="font-display text-2xl font-bold text-primary">{site.name}</Link>
+          <p className="mt-1 text-xs text-ink/50">پنل مدیریت</p>
+          <p className="mt-4 rounded-xl bg-primary/5 px-3 py-2 text-xs text-primary">{roleLabels[user.role]}</p>
+          <nav aria-label="مدیریت" className="mt-6 space-y-6">
+            {sections.map((section) => (
+              <div key={section.title}>
+                <h2 className="mb-2 px-3 text-[11px] font-semibold text-ink/40">{section.title}</h2>
+                <div className="space-y-1">
+                  {section.links.map((link) => (
+                    <Link key={link.href} href={link.href} className="flex min-h-11 items-center rounded-xl px-3 text-sm hover:bg-line/60">
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </nav>
+          <div className="mt-8 border-t border-line pt-4">
+            <Link href="/" className="flex min-h-11 items-center rounded-xl px-3 text-sm hover:bg-line/60">بازگشت به فروشگاه</Link>
+            <SignOutButton />
           </div>
-        </header>
-
-        <div className="p-6 font-persian">{children}</div>
-      </main>
+        </aside>
+        <main className="min-w-0 p-5 sm:p-8 lg:p-10">{children}</main>
+      </div>
     </div>
   );
 }

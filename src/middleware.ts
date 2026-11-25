@@ -1,89 +1,54 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { auth } from "@/auth";
-import { jwtDecode, getTokenFromHeader } from "@/lib/jwt";
+import { NextResponse, type NextRequest } from "next/server";
+import { CART_COOKIE } from "@/lib/constants";
 
-// Protect routes
-const protectedRoutes = [
-  /^\/api\/cart/,
-  /^\/api\/orders/,
-  /^\/api\/users\/profile/,
-  /^\/api\/users\/addresses/,
-  /^\/api\/users\/orders/,
-  /^\/api\/reviews/,
-  /^\/api\/admin\//,
-];
+function securityHeaders(): Record<string, string> {
+  const isDev = process.env.NODE_ENV !== "production";
+  return {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Content-Security-Policy": [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'self'",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      // Tailwind injects the theme as an inline <style>; Next injects inline bootstrap scripts.
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      `connect-src 'self'${isDev ? " ws: wss:" : ""}`,
+      "worker-src 'self' blob:",
+      "object-src 'none'",
+    ].join("; "),
+  };
+}
 
-const adminRoutes = [/^\/api\/admin\//, /^\/admin\//];
-
-export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-
-  // Check if route is protected
-  const isProtected = protectedRoutes.some((route) => route.test(pathname));
-  if (!isProtected) {
-    return NextResponse.next();
+export function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+  for (const [key, value] of Object.entries(securityHeaders())) {
+    response.headers.set(key, value);
+  }
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
 
-  // Try NextAuth session first
-  let session = await auth();
-
-  // If no session, try JWT token
-  if (!session) {
-    const authHeader = request.headers.get("authorization");
-    const token = getTokenFromHeader(authHeader);
-
-    if (token) {
-      const decoded = await jwtDecode(token);
-      if (decoded) {
-        session = {
-          user: {
-            id: decoded.userId as string,
-            role: (decoded.role || "CUSTOMER") as string,
-            phone: decoded.phone as string,
-          },
-        } as any;
-      }
-    }
+  // Anonymous visitors receive an opaque, HttpOnly cart token. Identity is
+  // never inferred from client-supplied headers in middleware or route handlers.
+  if (!request.cookies.has(CART_COOKIE)) {
+    response.cookies.set(CART_COOKIE, crypto.randomUUID().replace(/-/g, ""), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
   }
-
-  if (!session) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
-  }
-
-  // Check admin routes
-  const isAdminRoute = adminRoutes.some((route) => route.test(pathname));
-  if (isAdminRoute && session.user?.role !== "ADMIN") {
-    return NextResponse.json(
-      { success: false, error: "Forbidden - Admin only" },
-      { status: 403 },
-    );
-  }
-
-  // Add user info to request for use in route handlers
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-user-id", session.user?.id || "");
-  requestHeaders.set("x-user-role", (session.user as any)?.role || "CUSTOMER");
-  requestHeaders.set("x-user-phone", (session.user as any)?.phone || "");
-
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return response;
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|uploads/).*)"],
 };

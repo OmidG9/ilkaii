@@ -1,30 +1,19 @@
 import { NextRequest } from "next/server";
-import { productsService } from "@/services";
-import { productVariantSchema } from "@/lib/validators";
-import { successResponse, handleApiError, ApiError } from "@/lib/utils";
+import { audit } from "@/lib/audit";
+import { assertSameOrigin, ok, parseBody, route } from "@/lib/http";
+import { requirePermission } from "@/lib/auth/session";
+import { variantSchema } from "@/lib/validation";
+import { upsertVariant } from "@/services/catalog";
 
-async function isAdmin(req: NextRequest): Promise<boolean> {
-  const role = req.headers.get("x-user-role");
-  return role === "ADMIN";
-}
+export const runtime = "nodejs";
+type Context = { params: Promise<{ id: string }> };
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    if (!(await isAdmin(req))) {
-      throw new ApiError(403, "Forbidden - Admin access required");
-    }
-
-    const { id } = await params;
-    const body = await req.json();
-    const variant = productVariantSchema.parse(body);
-
-    const created = await productsService.addProductVariant(id, variant);
-
-    return successResponse(created, "Variant added successfully", 201);
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+export const POST = route(async (request: NextRequest, context) => {
+  assertSameOrigin(request);
+  const user = await requirePermission("inventory.write");
+  const { id } = await (context as Context).params;
+  const input = await parseBody(request, variantSchema);
+  const variant = await upsertVariant(id, input);
+  await audit({ actorId: user.id, action: "variant.created", entity: "ProductVariant", entityId: variant.id });
+  return ok({ id: variant.id }, 201);
+});

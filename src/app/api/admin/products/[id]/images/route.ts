@@ -1,32 +1,19 @@
 import { NextRequest } from "next/server";
-import { productsService } from "@/services";
-import { successResponse, handleApiError, ApiError } from "@/lib/utils";
+import { audit } from "@/lib/audit";
+import { assertSameOrigin, ok, parseBody, route } from "@/lib/http";
+import { requirePermission } from "@/lib/auth/session";
+import { productImageSchema } from "@/lib/validation";
+import { addProductImage } from "@/services/catalog";
 
-async function isAdmin(req: NextRequest): Promise<boolean> {
-  const role = req.headers.get("x-user-role");
-  return role === "ADMIN";
-}
+export const runtime = "nodejs";
+type Context = { params: Promise<{ id: string }> };
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    if (!(await isAdmin(req))) {
-      throw new ApiError(403, "Forbidden - Admin access required");
-    }
-
-    const { id } = await params;
-    const body = await req.json();
-
-    if (!Array.isArray(body.images)) {
-      throw new ApiError(400, "Images must be an array");
-    }
-
-    const images = await productsService.addProductImages(id, body.images);
-
-    return successResponse(images, "Images added successfully", 201);
-  } catch (error) {
-    return handleApiError(error);
-  }
-}
+export const POST = route(async (request: NextRequest, context) => {
+  assertSameOrigin(request);
+  const user = await requirePermission("product.write");
+  const { id } = await (context as Context).params;
+  const input = await parseBody(request, productImageSchema);
+  const image = await addProductImage(id, input.url, input.altText, input.color, input.variantId);
+  await audit({ actorId: user.id, action: "product.image_added", entity: "ProductImage", entityId: image.id });
+  return ok({ id: image.id }, 201);
+});

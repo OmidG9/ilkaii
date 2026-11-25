@@ -1,123 +1,37 @@
-"use client";
+import type { Metadata } from "next";
+import { listAdminCategories } from "@/services/admin";
+import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
-import { FA } from "@/lib/translations";
+export const metadata: Metadata = { title: "دستهبندیها — مدیریت" };
+export const dynamic = "force-dynamic";
 
-interface Category {
-  id: string;
-  name: string;
-  slug: string;
-  isActive: boolean;
-  _count?: { products: number };
-}
-
-export default function CategoriesPage() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchCategories();
-  }, []);
-
-  async function fetchCategories() {
-    try {
-      setLoading(true);
-      const response = await fetch("/api/categories");
-      const data = await response.json();
-      if (data.success) {
-        setCategories(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
-
+export default async function AdminCategoriesPage() {
+  const categories = await listAdminCategories();
+  const fields: EntityField[] = [
+    { key: "name", label: "نام", type: "text", required: true },
+    { key: "slug", label: "اسلاگ", type: "text", required: true, placeholder: "women-dresses" },
+    { key: "parentId", label: "دسته والد", type: "select", options: categories.map((c) => ({ value: c.id, label: c.name })) },
+    { key: "description", label: "توضیحات", type: "textarea" },
+    { key: "displayOrder", label: "ترتیب نمایش", type: "number" },
+    { key: "isActive", label: "فعال", type: "checkbox" },
+  ];
   return (
-    <div className="font-persian">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 font-serif-persian">
-          {FA.admin.categories}
-        </h2>
-        <Link
-          href="/admin/categories/new"
-          className="px-4 py-2 bg-luxury-primary text-white rounded hover:bg-luxury-hover font-persian"
-        >
-          + {FA.admin.addProduct}
-        </Link>
-      </div>
-
-      {loading ? (
-        <div className="text-center py-8 font-persian">{FA.common.loading}</div>
-      ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  نام
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  شناسه
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  محصولات
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  وضعیت
-                </th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                  اقدامات
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {categories.map((category) => (
-                <tr key={category.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                    {category.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {category.slug}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">
-                    {category._count?.products || 0}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`px-3 py-1 rounded text-white text-xs font-semibold ${
-                        category.isActive ? "bg-green-500" : "bg-gray-500"
-                      }`}
-                    >
-                      {category.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm space-x-2">
-                    <Link
-                      href={`/admin/categories/${category.id}`}
-                      className="text-blue-600 hover:underline"
-                    >
-                      Edit
-                    </Link>
-                    <button
-                      onClick={() => {
-                        if (confirm("Delete this category?")) {
-                          // TODO: Implement delete
-                        }
-                      }}
-                      className="text-red-600 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div>
+      <h1 className="mb-2 text-3xl font-semibold">دستهبندیها</h1>
+      <p className="mb-8 text-sm text-ink/60">دستهبندیها را مرتب کنید. اسلاگ باید انگلیسی و یکتا باشد.</p>
+      <EntityManager
+        endpoint="/api/admin/categories"
+        fields={fields}
+        columns={[
+          { key: "name", label: "نام" },
+          { key: "slug", label: "اسلاگ", ltr: true },
+          { key: "parent.name", label: "والد" },
+          { key: "_count.products", label: "محصولات" },
+          { key: "isActive", label: "وضعیت" },
+        ]}
+        items={toEntityRows(categories)}
+        createLabel="افزودن دستهبندی"
+      />
     </div>
   );
 }

@@ -1,191 +1,70 @@
-"use client";
-
-import { useEffect, useState } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { FA } from "@/lib/translations";
-import { formatPrice } from "@/lib/currency";
+import { listAdminOrders } from "@/services/admin";
+import { Card, Pagination } from "@/components/ui/display";
+import { formatToman } from "@/lib/money";
+import { formatJalali, formatNumber } from "@/lib/persian";
+import { orderStatusLabels, paymentStatusLabels } from "@/lib/labels";
+import type { OrderStatus } from "@prisma/client";
+import type { RawSearchParams } from "@/lib/search-params";
 
-interface Order {
-  id: string;
-  orderNumber: string;
-  user: { phone: string; firstName?: string };
-  totalAmount: number;
-  paymentStatus: string;
-  status: string;
-  createdAt: string;
-}
+export const metadata: Metadata = { title: "سفارشها — مدیریت" };
+export const dynamic = "force-dynamic";
 
-export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [statusFilter, setStatusFilter] = useState("");
+const statuses: OrderStatus[] = ["PENDING_PAYMENT", "PAID", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
 
-  useEffect(() => {
-    fetchOrders();
-  }, [page, statusFilter]);
-
-  async function fetchOrders() {
-    try {
-      setLoading(true);
-      const query = new URLSearchParams({
-        page: page.toString(),
-        pageSize: "20",
-        ...(statusFilter && { status: statusFilter }),
-      });
-
-      const response = await fetch(`/api/admin/orders?${query}`, {
-        headers: { "x-user-role": "ADMIN" },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setOrders(data.data.data);
-        setTotal(data.data.total);
-      }
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-    } finally {
-      setLoading(false);
-    }
-  }
+export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  const params = await searchParams;
+  const rawPage = typeof params.page === "string" ? Number(params.page) : 1;
+  const q = typeof params.q === "string" ? params.q.slice(0, 120) : "";
+  const rawStatus = typeof params.status === "string" ? params.status : "";
+  const status = statuses.includes(rawStatus as OrderStatus) ? rawStatus as OrderStatus : undefined;
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const result = await listAdminOrders({ page, pageSize: 15, q: q || undefined, status });
 
   return (
-    <div className="font-persian">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 font-serif-persian">
-          {FA.admin.orders}
-        </h2>
-        <select
-          value={statusFilter}
-          onChange={(e) => {
-            setStatusFilter(e.target.value);
-            setPage(1);
-          }}
-          className="px-4 py-2 border border-gray-300 rounded font-persian"
-        >
-          <option value="">تمام وضعیت‌ها</option>
-          <option value="PENDING">در انتظار</option>
-          <option value="CONFIRMED">تایید شده</option>
-          <option value="PROCESSING">در حال پردازش</option>
-          <option value="SHIPPED">ارسال شده</option>
-          <option value="DELIVERED">تحویل شده</option>
-          <option value="CANCELLED">لغو شده</option>
-        </select>
+    <div className="space-y-8">
+      <div>
+        <h1 className="mb-2 text-3xl font-semibold">سفارشها</h1>
+        <p className="text-sm text-ink/60">{formatNumber(result.total)} سفارش ثبت شده.</p>
       </div>
 
-      {loading ? (
-        <div className="text-center py-8 font-persian">{FA.common.loading}</div>
-      ) : (
-        <>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    شماره سفارش
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    مشتری
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    مبلغ
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    وضعیت پرداخت
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    وضعیت
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    تاریخ
-                  </th>
-                  <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((order) => (
-                  <tr key={order.id} className="border-b hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      {order.orderNumber}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {order.user.firstName || order.user.phone}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      {formatPrice(order.totalAmount, false)}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded text-white text-xs font-semibold ${
-                          order.paymentStatus === "COMPLETED"
-                            ? "bg-green-500"
-                            : "bg-yellow-500"
-                        }`}
-                      >
-                        {order.paymentStatus === "COMPLETED"
-                          ? "تکمیل شده"
-                          : "در انتظار"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <span
-                        className={`px-3 py-1 rounded text-white text-xs font-semibold ${
-                          order.status === "DELIVERED"
-                            ? "bg-blue-500"
-                            : order.status === "PENDING"
-                              ? "bg-orange-500"
-                              : "bg-purple-500"
-                        }`}
-                      >
-                        {order.status === "DELIVERED"
-                          ? "تحویل شده"
-                          : order.status === "PENDING"
-                            ? "در انتظار"
-                            : "در حال پردازش"}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(order.createdAt).toLocaleDateString("fa-IR")}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      <Link
-                        href={`/admin/orders/${order.id}`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        مشاهده
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <Card className="p-5">
+        <form method="get" className="flex flex-wrap gap-3">
+          <input name="q" defaultValue={q} placeholder="شماره سفارش یا موبایل" className="field max-w-xs flex-1" dir="ltr" />
+          <select name="status" className="field max-w-48" defaultValue={status ?? ""}>
+            <option value="">همه وضعیتها</option>
+            {statuses.map((item) => <option key={item} value={item}>{orderStatusLabels[item]}</option>)}
+          </select>
+          <button type="submit" className="inline-flex min-h-12 items-center rounded-2xl bg-primary px-6 text-sm text-white">اعمال فیلتر</button>
+        </form>
+      </Card>
 
-          {/* Pagination */}
-          <div className="mt-6 flex justify-center items-center space-x-2">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-              className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="text-gray-600">
-              Page {page} of {Math.ceil(total / 20)}
-            </span>
-            <button
-              disabled={page * 20 >= total}
-              onClick={() => setPage(page + 1)}
-              className="px-4 py-2 bg-gray-200 rounded disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </>
-      )}
+      <Card className="overflow-hidden">
+        <div className="table-wrap">
+          <table className="table-luxury">
+            <thead><tr><th>سفارش</th><th>مشتری</th><th>تاریخ</th><th>مبلغ</th><th>وضعیت</th><th>پرداخت</th><th></th></tr></thead>
+            <tbody>
+              {result.items.map((order) => (
+                <tr key={order.id}>
+                  <td dir="ltr" className="text-xs font-medium">{order.orderNumber}</td>
+                  <td>
+                    <p dir="ltr" className="text-xs">{order.user?.phone ?? "—"}</p>
+                    <p className="mt-1 text-xs text-ink/50">{[order.user?.firstName, order.user?.lastName].filter(Boolean).join(" ") || "—"}</p>
+                  </td>
+                  <td>{formatJalali(order.createdAt)}</td>
+                  <td dir="ltr">{formatToman(order.total)}</td>
+                  <td>{orderStatusLabels[order.status]}</td>
+                  <td>{paymentStatusLabels[order.paymentStatus]}</td>
+                  <td><Link href={`/admin/orders/${order.id}`} className="text-sm text-primary underline">جزئیات</Link></td>
+                </tr>
+              ))}
+              {!result.items.length ? <tr><td colSpan={7} className="py-10 text-center text-ink/50">سفارشی یافت نشد.</td></tr> : null}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+      <Pagination page={page} pageCount={result.pageCount} pathname="/admin/orders" params={{ q: q || undefined, status: status || undefined }} />
     </div>
   );
 }
