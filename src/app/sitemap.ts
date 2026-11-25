@@ -14,14 +14,18 @@ const staticPages: Array<{ path: string; priority: number; changeFrequency: Meta
   { path: "/policies/returns", priority: 0.4, changeFrequency: "monthly" },
   { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
   { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
+  { path: "/blog", priority: 0.6, changeFrequency: "weekly" },
 ];
 
 /** Fails soft when the database is unavailable during a build or health check. */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let categories: Array<{ slug: string; updatedAt: Date }> = [];
   let products: Array<{ slug: string; updatedAt: Date }> = [];
+  let pages: Array<{ slug: string; updatedAt: Date }> = [];
+  let posts: Array<{ slug: string; updatedAt: Date }> = [];
   try {
-    [categories, products] = await Promise.all([
+    const now = new Date();
+    [categories, products, pages, posts] = await Promise.all([
       prisma.category.findMany({
         where: { isActive: true },
         select: { slug: true, updatedAt: true },
@@ -32,6 +36,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: { slug: true, updatedAt: true },
         orderBy: { createdAt: "desc" },
         take: 5000,
+      }),
+      prisma.cmsPage.findMany({
+        where: { OR: [{ status: "PUBLISHED" }, { status: "SCHEDULED", scheduledAt: { lte: now } }] },
+        select: { slug: true, updatedAt: true },
+      }),
+      prisma.blogPost.findMany({
+        where: { OR: [{ status: "PUBLISHED" }, { status: "SCHEDULED", scheduledAt: { lte: now } }] },
+        select: { slug: true, updatedAt: true },
       }),
     ]);
   } catch {
@@ -56,6 +68,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: product.updatedAt,
       changeFrequency: "weekly" as const,
       priority: 0.8,
+    })),
+    ...pages.map((page) => ({
+      url: `${base()}/pages/${page.slug}`,
+      lastModified: page.updatedAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.4,
+    })),
+    ...posts.map((post) => ({
+      url: `${base()}/blog/${post.slug}`,
+      lastModified: post.updatedAt,
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
     })),
   ];
 }

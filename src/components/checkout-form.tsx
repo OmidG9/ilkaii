@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Alert, Card, EmptyState } from "@/components/ui/display";
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/field";
+import { TrackEvent } from "@/components/track-event";
+import { track } from "@/lib/analytics-client";
 import type { Address } from "@prisma/client";
 import type { CartView as CartViewType } from "@/services/cart";
 import { formatToman } from "@/lib/money";
@@ -66,6 +68,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping }: Props) {
 
     setBusy(true);
     try {
+      track("add_shipping_info", { metadata: { shippingMethod, paymentMethod, itemCount: cart.itemCount, subtotal: cart.subtotal } });
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: {
@@ -84,6 +87,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping }: Props) {
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "ثبت سفارش ناموفق بود");
       if (body.data.redirectUrl) {
+        track("payment_initiated", { metadata: { orderNumber: body.data.orderNumber, paymentMethod, total: body.data.total ?? null } });
         window.location.assign(body.data.redirectUrl);
         return;
       }
@@ -105,6 +109,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping }: Props) {
 
   return (
     <form onSubmit={submit} className="grid gap-8 lg:grid-cols-[1fr_360px]">
+      <TrackEvent name="begin_checkout" properties={{ metadata: { itemCount: cart.itemCount, subtotal: cart.subtotal } }} />
       <div className="space-y-6">
         <Card className="p-6">
           <h2 className="mb-5 text-lg font-semibold">آدرس تحویل</h2>

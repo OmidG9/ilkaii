@@ -3,6 +3,7 @@ import { getCategories } from "@/services/catalog";
 import { ProductFilters } from "@/components/product-filters";
 import { ProductGrid } from "@/components/product-grid";
 import { Breadcrumbs, Pagination, SectionTitle } from "@/components/ui/display";
+import { TrackEvent } from "@/components/track-event";
 import { productQuerySchema } from "@/lib/validation";
 import { normalizeSearchParams } from "@/lib/search-params";
 import type { RawSearchParams } from "@/lib/search-params";
@@ -15,6 +16,7 @@ export async function ProductListing({
   searchParams,
   breadcrumb,
   fixedCategory,
+  analyticsCategoryId,
 }: {
   title: string;
   subtitle?: string;
@@ -22,6 +24,7 @@ export async function ProductListing({
   searchParams: RawSearchParams;
   breadcrumb?: { label: string; href?: string };
   fixedCategory?: string;
+  analyticsCategoryId?: string;
 }) {
   const raw = normalizeSearchParams(searchParams);
   if (fixedCategory) raw.category = fixedCategory;
@@ -44,6 +47,9 @@ export async function ProductListing({
 
   return (
     <div className="container-luxury py-10">
+      {raw.q ? <TrackEvent name="search" properties={{ metadata: { query: raw.q.slice(0, 200), results: result.total } }} /> : null}
+      {fixedCategory ? <TrackEvent name="category_view" properties={{ categoryId: analyticsCategoryId, metadata: { slug: fixedCategory } }} /> : null}
+      {raw.size || raw.color || raw.minPrice || raw.maxPrice ? <TrackEvent name="filter_applied" properties={{ categoryId: analyticsCategoryId, metadata: { size: raw.size ?? null, color: raw.color ?? null, minPrice: raw.minPrice ?? null, maxPrice: raw.maxPrice ?? null } }} /> : null}
       {breadcrumb ? <Breadcrumbs items={[breadcrumb]} /> : null}
       <SectionTitle title={title} subtitle={subtitle} />
       <div className="grid gap-8 lg:grid-cols-[280px_1fr]">

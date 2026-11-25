@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import Link from "next/link";
 import { listAdminOrders } from "@/services/admin";
 import { Card, Pagination } from "@/components/ui/display";
@@ -14,13 +15,15 @@ export const dynamic = "force-dynamic";
 const statuses: OrderStatus[] = ["PENDING_PAYMENT", "PAID", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED", "REFUNDED"];
 
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  await requirePagePermission("orders.view");
   const params = await searchParams;
   const rawPage = typeof params.page === "string" ? Number(params.page) : 1;
   const q = typeof params.q === "string" ? params.q.slice(0, 120) : "";
   const rawStatus = typeof params.status === "string" ? params.status : "";
   const status = statuses.includes(rawStatus as OrderStatus) ? rawStatus as OrderStatus : undefined;
+  const sort = params.sort === "oldest" || params.sort === "total-desc" || params.sort === "total-asc" ? params.sort : "newest";
   const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const result = await listAdminOrders({ page, pageSize: 15, q: q || undefined, status });
+  const result = await listAdminOrders({ page, pageSize: 15, q: q || undefined, status, sort });
 
   return (
     <div className="space-y-8">
@@ -35,6 +38,12 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
           <select name="status" className="field max-w-48" defaultValue={status ?? ""}>
             <option value="">همه وضعیتها</option>
             {statuses.map((item) => <option key={item} value={item}>{orderStatusLabels[item]}</option>)}
+          </select>
+          <select name="sort" className="field max-w-44" defaultValue={sort} aria-label="مرتب‌سازی">
+            <option value="newest">جدیدترین</option>
+            <option value="oldest">قدیمی‌ترین</option>
+            <option value="total-desc">بیشترین مبلغ</option>
+            <option value="total-asc">کمترین مبلغ</option>
           </select>
           <button type="submit" className="inline-flex min-h-12 items-center rounded-2xl bg-primary px-6 text-sm text-white">اعمال فیلتر</button>
         </form>
@@ -64,7 +73,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
           </table>
         </div>
       </Card>
-      <Pagination page={page} pageCount={result.pageCount} pathname="/admin/orders" params={{ q: q || undefined, status: status || undefined }} />
+      <Pagination page={page} pageCount={result.pageCount} pathname="/admin/orders" params={{ q: q || undefined, status: status || undefined, sort }} />
     </div>
   );
 }

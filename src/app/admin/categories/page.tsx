@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import { listAdminCategories } from "@/services/admin";
-import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
+import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 
 export const metadata: Metadata = { title: "دستهبندیها — مدیریت" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminCategoriesPage() {
+  await requirePagePermission("products.view");
   const categories = await listAdminCategories();
   const fields: EntityField[] = [
     { key: "name", label: "نام", type: "text", required: true },
@@ -29,7 +31,7 @@ export default async function AdminCategoriesPage() {
           { key: "_count.products", label: "محصولات" },
           { key: "isActive", label: "وضعیت" },
         ]}
-        items={toEntityRows(categories)}
+        items={categories as unknown as Array<Record<string, unknown>>}
         createLabel="افزودن دستهبندی"
       />
     </div>

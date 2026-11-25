@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { CART_COOKIE } from "@/lib/constants";
+import { ANALYTICS_COOKIE, CART_COOKIE } from "@/lib/constants";
 
 function securityHeaders(): Record<string, string> {
   const isDev = process.env.NODE_ENV !== "production";
@@ -44,6 +44,16 @@ export function middleware(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
+    });
+  }
+  // Anonymous analytics session: random, server-issued, never a fingerprint.
+  if (!request.cookies.has(ANALYTICS_COOKIE)) {
+    response.cookies.set(ANALYTICS_COOKIE, crypto.randomUUID().replace(/-/g, ""), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 90,
     });
   }
   return response;

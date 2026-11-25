@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
 import { getAdminOrder } from "@/services/admin";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
@@ -22,6 +23,7 @@ const transitions: Record<string, string[]> = {
 };
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requirePagePermission("orders.view");
   const { id } = await params;
   let order;
   try {

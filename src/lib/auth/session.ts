@@ -2,7 +2,6 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
-import type { RoleCode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getServerEnv, isProduction } from "@/lib/env";
 import { Errors } from "@/lib/errors";
@@ -14,7 +13,7 @@ const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 export interface SessionUser {
   id: string;
   phone: string;
-  role: RoleCode;
+  role: string;
   firstName: string | null;
   lastName: string | null;
   sessionId: string;
@@ -34,7 +33,7 @@ function cookieOptions(maxAge: number) {
   };
 }
 
-export async function createSession(userId: string): Promise<string> {
+export async function createSession(userId: string, meta: { ip?: string | null; userAgent?: string | null } = {}): Promise<string> {
   const sessionId = randomBytes(16).toString("hex");
   const token = await new SignJWT({ sub: userId })
     .setProtectedHeader({ alg: "HS256" })
@@ -50,7 +49,8 @@ export async function createSession(userId: string): Promise<string> {
       userId,
       tokenHash,
       expiresAt: new Date(Date.now() + SESSION_TTL_SECONDS * 1000),
-      ip: null,
+      ip: meta.ip?.slice(0, 64) ?? null,
+      userAgent: meta.userAgent?.slice(0, 512) ?? null,
     },
   });
   (await cookies()).set(SESSION_COOKIE, token, cookieOptions(SESSION_TTL_SECONDS));
@@ -120,10 +120,18 @@ export async function requireUser(): Promise<SessionUser> {
   return user;
 }
 
-export async function requireRole(...roles: RoleCode[]): Promise<SessionUser> {
+export async function requireRole(...roles: string[]): Promise<SessionUser> {
   const user = await requireUser();
   if (!roles.includes(user.role)) throw Errors.forbidden();
   return user;
+}
+
+export async function permissionKeysForRole(role: string): Promise<PermissionKey[]> {
+  const row = await prisma.role.findUnique({
+    where: { code: role },
+    select: { permissions: { select: { permission: { select: { key: true } } } } },
+  });
+  return (row?.permissions.map((entry) => entry.permission.key) ?? []) as PermissionKey[];
 }
 
 export async function requirePermission(permission: PermissionKey): Promise<SessionUser> {
@@ -134,6 +142,29 @@ export async function requirePermission(permission: PermissionKey): Promise<Sess
     select: { permissions: { where: { permission: { key: permission } }, select: { permissionId: true } } },
   });
   if (!role?.permissions.length) throw Errors.forbidden();
+  return user;
+}
+
+/** Server Component guard for a specific permission; redirects to /admin. */
+export async function requirePagePermission(permission: PermissionKey): Promise<SessionUser> {
+  return requirePageAnyPermission(permission);
+}
+
+export async function requireAnyPermission(...permissions: PermissionKey[]): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!roleCanAccessAdmin(user.role)) throw Errors.forbidden();
+  const role = await prisma.role.findUnique({
+    where: { code: user.role },
+    select: { permissions: { where: { permission: { key: { in: permissions } } }, select: { permissionId: true } } },
+  });
+  if (!role?.permissions.length) throw Errors.forbidden();
+  return user;
+}
+
+export async function requirePageAnyPermission(...permissions: PermissionKey[]): Promise<SessionUser> {
+  const user = await requirePageAdmin();
+  const keys = await permissionKeysForRole(user.role);
+  if (!permissions.some((permission) => keys.includes(permission))) redirect("/admin/dashboard?denied=1");
   return user;
 }
 

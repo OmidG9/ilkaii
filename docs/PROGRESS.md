@@ -69,6 +69,23 @@ Files: `src/lib/auth/*`, `src/app/api/auth/*`, `scripts/bootstrap-admin.ts`.
 - [x] Site settings editor (brand, theme tokens, contact, shipping, features, content).
 - [x] Audit log viewer.
 
+## Phase 8.1 — Control Center extension (see docs/ADMIN_PROGRESS.md)
+
+- [x] Persistent/collapsible RTL admin shell, global search, notifications,
+  breadcrumbs, quick actions, date ranges, dark theme, skeletons/errors.
+- [x] Real dashboard metrics + charts with documented revenue/net/refund formulas.
+- [x] CMS: homepage builder, pages, banners, menus, media library, blog, footer.
+- [x] Product bulk price/stock/status/feature/archive, duplication, low-stock alerts.
+- [x] CRM profile + seven segments + filtered CSV export.
+- [x] First-party analytics ingestion, dedup, bot filter, consent, aggregates,
+  traffic/product/funnel/search/campaign/customer dashboards and session explorer.
+- [x] Marketing campaigns, subscribers, abandoned carts, consent-aware adapters,
+  token unsubscribe.
+- [x] Reports center with 10 report types, comparison, grouping, print/CSV.
+- [x] Encrypted integration secrets with masked UI; system health and maintenance job.
+- [x] Eight built-in RBAC roles, custom roles/permission editor, role guards,
+  session revocation, audit before/after + request id.
+
 ## Phase 9 — Iranian e-commerce requirements
 
 - [x] Toman currency, Persian/Indic digit normalization, Iranian phone + postal validation.
@@ -91,9 +108,9 @@ Files: `src/lib/auth/*`, `src/app/api/auth/*`, `scripts/bootstrap-admin.ts`.
 
 ## Phase 12 — Testing
 
-- [x] Unit tests (Node test runner + tsx): money/coupons/shipping, Persian helpers, Zod schemas, RBAC matrix. **25/25 passing.**
-- [ ] Integration tests against MySQL (blocked: no database in this environment).
-- [ ] Browser E2E for OTP login → cart → checkout → callback (blocked: no DB/gateway credentials).
+- [x] Unit tests (Node test runner + tsx): money/coupons/shipping, Persian helpers, Zod schemas, RBAC matrix, Tehran date ranges, analytics schema, CSV escaping. **47/47 passing.**
+- [ ] Integration tests against MySQL in CI (manual live smoke tests were run; no disposable DB suite yet).
+- [ ] Browser E2E for OTP login → cart → checkout → callback (manual flow verified previously).
 
 ## Phase 13 — Production readiness
 
@@ -110,8 +127,9 @@ Files: `src/lib/auth/*`, `src/app/api/auth/*`, `scripts/bootstrap-admin.ts`.
 | Command | Result |
 | --- | --- |
 | `npm run type-check` | passes (strict, no errors) |
-| `npm test` | 25/25 passing |
+| `npm test` | 47/47 passing |
 | `npm run build` | succeeds, all routes compiled |
+| Control Center smoke | all `/admin/*` pages (SUPER_ADMIN) → 200; CMS/roles/bulk/marketing/secrets/export/maintenance APIs verified against live MySQL |
 | `npm run start` smoke test | `/`, `/shop`, `/product/*`, `/sitemap.xml`, `/robots.txt`, `/api/products` → 200; `/admin` → 307 |
 | `npm run db:seed` | runs and is idempotent (6 products / 36 variants / 5 categories) |
 | Full E2E (dev) | OTP login → cart → checkout → idempotent replay → mock payment → order `PAID` + stock decrement; unauthenticated admin write blocked |

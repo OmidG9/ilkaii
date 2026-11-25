@@ -20,6 +20,10 @@ phone/postal validation.
 - Admin dashboard: overview, products/variants/images, categories, brands,
   inventory ledger, orders + status transitions, customers, coupons, returns,
   review moderation, site settings, audit log
+- Control Center: CMS (homepage builder/pages/banners/menus/media/blog), CRM
+  segmentation, first-party analytics + funnel/session explorer, marketing
+  campaigns/subscribers, reports/CSV, encrypted integrations, system health and
+  granular RBAC with custom roles
 - Server-authoritative checkout, idempotency keys, stock reservation and
   compensation on payment failure
 - Configurable SMS/payment/storage adapters; dev-only mock adapters are blocked
@@ -78,6 +82,10 @@ docs                Authoritative project documentation
 ## Docs
 
 - `docs/PROGRESS.md` — phase-by-phase status and verification log
+- `docs/ADMIN_DASHBOARD_PLAN.md` — Control Center architecture, routes and metrics
+- `docs/ANALYTICS_ARCHITECTURE.md` — event model, privacy, funnels and formulas
+- `docs/ADMIN_SECURITY.md` — RBAC, secrets, audit and admin controls
+- `docs/ADMIN_PROGRESS.md` — Control Center checklist and remaining work
 - `docs/DEPLOYMENT.md` — production setup, env vars, operations
 - `docs/SECURITY_AUDIT.md` — controls, residual risks and mitigations
 - `docs/DATABASE_MIGRATION.md` — fresh installs and legacy upgrades

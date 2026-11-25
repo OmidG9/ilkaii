@@ -1,10 +1,23 @@
-import type { InventoryReason, OrderStatus, PaymentStatus, ReturnStatus, RoleCode } from "@prisma/client";
+import type {
+  CampaignChannel,
+  CampaignStatus,
+  CmsStatus,
+  InventoryReason,
+  MenuLocation,
+  NotificationChannel,
+  NotificationStatus,
+  OrderStatus,
+  PaymentStatus,
+  ReturnStatus,
+  SubscriberStatus,
+} from "@prisma/client";
+import { BUILT_IN_ROLES, roleLabel } from "@/lib/permissions";
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "در انتظار پرداخت",
   PAID: "پرداخت شده",
-  PROCESSING: "در حال آمادهسازی",
-  PACKED: "بستهبندی شده",
+  PROCESSING: "در حال آماده‌سازی",
+  PACKED: "بسته‌بندی شده",
   SHIPPED: "ارسال شده",
   DELIVERED: "تحویل داده شده",
   CANCELLED: "لغو شده",
@@ -33,10 +46,84 @@ export const inventoryReasonLabels: Record<InventoryReason, string> = {
   CANCELLATION: "لغو سفارش",
 };
 
-export const roleLabels: Record<RoleCode, string> = {
-  SUPER_ADMIN: "مدیرکل",
-  ADMIN: "مدیر",
-  ORDER_MANAGER: "مدیر سفارشها",
-  PRODUCT_MANAGER: "مدیر محصول",
-  CUSTOMER: "مشتری",
+export const roleLabels: Record<string, string> = Object.fromEntries(
+  BUILT_IN_ROLES.map((code) => [code, roleLabel(code)]),
+);
+
+export const cmsStatusLabels: Record<CmsStatus, string> = {
+  DRAFT: "پیش‌نویس",
+  SCHEDULED: "زمان‌بندی شده",
+  PUBLISHED: "منتشر شده",
+  ARCHIVED: "بایگانی",
+};
+
+export const campaignStatusLabels: Record<CampaignStatus, string> = {
+  DRAFT: "پیش‌نویس",
+  SCHEDULED: "زمان‌بندی شده",
+  ACTIVE: "فعال",
+  PAUSED: "متوقف",
+  COMPLETED: "تکمیل شده",
+  CANCELLED: "لغو شده",
+};
+
+export const campaignChannelLabels: Record<CampaignChannel, string> = {
+  EMAIL: "ایمیل",
+  SMS: "پیامک",
+  BANNER: "بنر",
+};
+
+export const subscriberStatusLabels: Record<SubscriberStatus, string> = {
+  PENDING: "در انتظار تأیید",
+  ACTIVE: "فعال",
+  UNSUBSCRIBED: "لغو عضویت",
+  BOUNCED: "برگشتی",
+};
+
+export const notificationStatusLabels: Record<NotificationStatus, string> = {
+  QUEUED: "در صف",
+  SENT: "ارسال شده",
+  FAILED: "ناموفق",
+  SKIPPED: "رد شده",
+};
+
+export const notificationChannelLabels: Record<NotificationChannel, string> = {
+  EMAIL: "ایمیل",
+  SMS: "پیامک",
+};
+
+export const menuLocationLabels: Record<MenuLocation, string> = {
+  HEADER: "منوی اصلی",
+  FOOTER: "منوی پایین",
+  MOBILE: "منوی موبایل",
+};
+
+export const analyticsEventLabels: Record<string, string> = {
+  page_view: "بازدید صفحه",
+  product_view: "مشاهده محصول",
+  category_view: "مشاهده دسته‌بندی",
+  search: "جستجو",
+  filter_applied: "اعمال فیلتر",
+  variant_selected: "انتخاب تنوع",
+  add_to_cart: "افزودن به سبد",
+  remove_from_cart: "حذف از سبد",
+  wishlist_add: "افزودن به علاقه‌مندی",
+  begin_checkout: "شروع تسویه",
+  add_shipping_info: "ثبت اطلاعات ارسال",
+  payment_initiated: "شروع پرداخت",
+  purchase: "خرید",
+  refund: "بازپرداخت",
+  review_submitted: "ثبت نظر",
+};
+
+export const homepageSectionLabels: Record<string, string> = {
+  HERO: "هیرو",
+  BANNER: "بنر",
+  FEATURED_CATEGORIES: "دسته‌بندی‌های ویژه",
+  FEATURED_PRODUCTS: "محصولات ویژه",
+  NEW_ARRIVALS: "جدیدترین‌ها",
+  BEST_SELLERS: "پرفروش‌ها",
+  PROMOTIONAL: "بخش تبلیغاتی",
+  SEASONAL_COLLECTION: "کلکسیون فصلی",
+  TESTIMONIALS: "نظرات مشتریان",
+  CUSTOM_CONTENT: "بلوک محتوای دلخواه",
 };

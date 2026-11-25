@@ -26,6 +26,8 @@ needs it.
 | `NEXT_PUBLIC_CONTACT_EMAIL` | no | Default contact email |
 | `NEXT_PUBLIC_IMAGE_HOSTS` | no | Comma-separated extra image hosts (Cloudinary is built in) |
 | `SMS_API_URL` / `SMS_API_TOKEN` | prod | Kavenegar-style HTTP SMS adapter |
+| `EMAIL_API_URL` | prod (marketing) | HTTP JSON email provider; token can be stored in Admin → Settings → Integrations |
+| `CRON_SECRET` | prod | Bearer secret for `POST /api/cron/maintenance`; without it the route is 404 in production |
 | `PAYMENT_PROVIDER` | prod | `ZARINPAL` in production; `MOCK` is rejected |
 | `ZARINPAL_MERCHANT_ID` | prod | Merchant ID |
 | `ZARINPAL_SANDBOX` | no | `true` for sandbox, `false` for live |

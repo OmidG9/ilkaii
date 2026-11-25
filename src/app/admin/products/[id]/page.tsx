@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAdminProduct, listBrands } from "@/services/admin";
 import { ProductForm } from "@/components/admin/product-form";
-import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
+import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 import { ImageManager } from "@/components/admin/image-manager";
 import { DeleteButton } from "@/components/admin/delete-button";
+import { DuplicateProductButton } from "@/components/admin/duplicate-product-button";
 import { Card, SectionTitle } from "@/components/ui/display";
 import { formatToman } from "@/lib/money";
 import { formatJalali, formatNumber } from "@/lib/persian";
@@ -21,6 +23,7 @@ type Props = {
 };
 
 export default async function AdminProductDetailPage({ params, searchParams }: Props) {
+  await requirePagePermission("products.view");
   const { id } = await params;
   await searchParams;
   let product;
@@ -51,7 +54,10 @@ export default async function AdminProductDetailPage({ params, searchParams }: P
           <h1 className="text-3xl font-semibold">{product.name}</h1>
           <p dir="ltr" className="mt-2 text-xs text-ink/50">{product.sku}</p>
         </div>
-        <DeleteButton endpoint={`/api/admin/products/${product.id}`} label="بایگانی محصول" redirectTo="/admin/products" />
+        <div className="flex flex-wrap items-center gap-2">
+          <DuplicateProductButton productId={product.id} />
+          <DeleteButton endpoint={`/api/admin/products/${product.id}`} label="بایگانی محصول" redirectTo="/admin/products" />
+        </div>
       </div>
 
       <ProductForm
@@ -90,7 +96,7 @@ export default async function AdminProductDetailPage({ params, searchParams }: P
             { key: "stock", label: "موجودی" },
             { key: "isAvailable", label: "وضعیت" },
           ]}
-          items={toEntityRows(product.variants)}
+          items={product.variants as unknown as Array<Record<string, unknown>>}
           createLabel="افزودن تنوع"
         />
       </section>

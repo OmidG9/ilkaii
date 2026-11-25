@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { AppError, publicError } from "@/lib/errors";
 import { logger } from "@/lib/logger";
+import { recordSystemEvent } from "@/services/system";
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -11,7 +12,10 @@ export function ok<T>(data: T, status = 200) {
 
 export function fail(error: unknown) {
   const { status, body } = publicError(error);
-  if (status >= 500) logger.error("api_error", { error: error instanceof Error ? error.message : String(error) });
+  if (status >= 500) {
+    logger.error("api_error", { error: error instanceof Error ? error.message : String(error) });
+    void recordSystemEvent("error", "api", error instanceof Error ? error.message : String(error));
+  }
   return NextResponse.json(body, { status });
 }
 

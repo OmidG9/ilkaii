@@ -5,6 +5,8 @@ import { Errors } from "@/lib/errors";
 import { calculateCoupon, orderTotals, shippingCost, toToman, toDecimalString } from "@/lib/money";
 import { getCartView } from "@/services/cart";
 import { getPaymentProvider } from "@/services/payment";
+import { recordAnalyticsEvent } from "@/services/analytics";
+import { invalidateCache } from "@/lib/cache";
 import { audit } from "@/lib/audit";
 import type { CheckoutInput } from "@/services/types";
 
@@ -25,7 +27,12 @@ function orderNumber() {
  * Server-authoritative checkout. Items, prices, discounts and shipping are
  * reloaded and recomputed here; client input may only select options.
  */
-export async function createCheckout(input: CheckoutInput, userId: string, idempotencyKey: string): Promise<CheckoutResult> {
+export async function createCheckout(
+  input: CheckoutInput,
+  userId: string,
+  idempotencyKey: string,
+  options: { analyticsSessionId?: string | null } = {},
+): Promise<CheckoutResult> {
   const existing = await prisma.payment.findUnique({ where: { idempotencyKey } });
   if (existing) {
     const order = await prisma.order.findUnique({ where: { id: existing.orderId }, select: { id: true, orderNumber: true, totalAmount: true, paymentStatus: true } });
@@ -132,6 +139,7 @@ export async function createCheckout(input: CheckoutInput, userId: string, idemp
         shippingCost: toDecimalString(totals.shipping),
         totalAmount: toDecimalString(totals.total),
         couponId,
+        analyticsSessionId: options.analyticsSessionId ?? null,
         items: {
           create: lines.map((line) => ({
             productId: line.product.id,
@@ -217,6 +225,21 @@ export async function createCheckout(input: CheckoutInput, userId: string, idemp
     }
   }
 
+  if (input.paymentMethod === "COD" && options.analyticsSessionId) {
+    await recordAnalyticsEvent({
+      eventId: `purchase-${result.order.id}`,
+      name: "purchase",
+      path: "/checkout/result",
+      metadata: { revenue: result.totals.total, orderId: result.order.id, orderNumber: result.order.orderNumber, method: "COD" },
+    }, {
+      sessionId: options.analyticsSessionId,
+      customerId: userId,
+      consentGranted: true,
+      serverEvent: true,
+    });
+  }
+
+  invalidateCache("dashboard:");
   return {
     orderId: result.order.id,
     orderNumber: result.order.orderNumber,
@@ -347,6 +370,21 @@ export async function finalizePayment(params: {
     await tx.orderStatusHistory.create({ data: { orderId: current.id, fromStatus: current.status, toStatus: "CANCELLED", note: "پرداخت ناموفق" } });
     return updated;
   });
+
+  if (params.success && order.analyticsSessionId) {
+    await recordAnalyticsEvent({
+      eventId: `purchase-${order.id}`,
+      name: "purchase",
+      path: "/checkout/result",
+      metadata: { revenue: toToman(order.totalAmount), orderId: order.id, orderNumber: order.orderNumber, method: order.paymentMethod },
+    }, {
+      sessionId: order.analyticsSessionId,
+      customerId: order.userId,
+      consentGranted: true,
+      serverEvent: true,
+    });
+  }
+  invalidateCache("dashboard:");
   return { alreadyProcessed: false, order };
 }
 
@@ -402,4 +440,5 @@ export async function cancelOrder(orderId: string, actorId: string) {
     });
     await audit({ actorId, action: "order.cancelled", entity: "Order", entityId: orderId });
   });
+  invalidateCache("dashboard:");
 }

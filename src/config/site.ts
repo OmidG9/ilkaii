@@ -10,9 +10,14 @@ export interface SiteConfig {
   name: string;
   tagline: string;
   description: string;
+  logo: string;
   locale: string;
   currency: string;
   timezone: string;
+  seo: {
+    defaultTitle: string;
+    defaultDescription: string;
+  };
   theme: {
     primary: string;
     secondary: string;
@@ -55,6 +60,11 @@ export const defaultSiteConfig: SiteConfig = {
   locale: "fa-IR",
   currency: "TOMAN",
   timezone: "Asia/Tehran",
+  logo: "",
+  seo: {
+    defaultTitle: "",
+    defaultDescription: "",
+  },
   theme: {
     primary: "#6B5E57",
     secondary: "#A89C94",
@@ -149,10 +159,15 @@ export async function getSiteConfig(): Promise<SiteConfig> {
 }
 
 export const editableSettingKeys = [
-  "site.name", "site.tagline", "site.description",
+  "site.name", "site.tagline", "site.description", "site.logo", "site.locale", "site.currency", "site.timezone",
   "theme.primary", "theme.secondary", "theme.background", "theme.text", "theme.border", "theme.hover",
   "contact.email", "contact.phone", "contact.address",
   "shipping.postal", "shipping.courier", "shipping.pickup", "shipping.freeThreshold",
   "features.wishlist", "features.reviews", "features.coupons", "features.sizeGuide", "features.newsletter",
   "content.about", "content.shippingPolicy", "content.returnPolicy", "content.privacyPolicy", "content.terms",
+  "seo.defaultTitle", "seo.defaultDescription",
+  "analytics.enabled", "analytics.requireConsent", "analytics.retentionDays",
+  "privacy.marketingConsent", "privacy.analyticsCookieDays",
+  "backup.frequency", "backup.retentionDays", "backup.lastRunAt",
+  "store.orderPrefix", "store.invoiceFooter",
 ] as const;

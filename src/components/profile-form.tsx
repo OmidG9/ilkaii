@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Alert, Card } from "@/components/ui/display";
 import { Field, Input } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/field";
 
 interface Profile {
   id: string;
@@ -12,6 +13,7 @@ interface Profile {
   firstName: string | null;
   lastName: string | null;
   email: string | null;
+  marketingOptIn: boolean;
 }
 
 export function ProfileForm({ profile }: { profile: Profile }) {
@@ -20,6 +22,7 @@ export function ProfileForm({ profile }: { profile: Profile }) {
     firstName: profile.firstName ?? "",
     lastName: profile.lastName ?? "",
     email: profile.email ?? "",
+    marketingOptIn: profile.marketingOptIn,
   });
   const [message, setMessage] = useState<{ text: string; tone: "error" | "success" } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -55,6 +58,12 @@ export function ProfileForm({ profile }: { profile: Profile }) {
           <Field label="ایمیل (اختیاری)" htmlFor="profile-email">
             <Input id="profile-email" type="email" dir="ltr" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </Field>
+        </div>
+        <div className="sm:col-span-2">
+          <label className="flex min-h-11 items-center gap-2 text-xs text-ink/65">
+            <Checkbox checked={form.marketingOptIn} onChange={(event) => setForm({ ...form, marketingOptIn: event.target.checked })} />
+            مایل به دریافت پیام‌های بازاریابی و پیشنهادهای ویژه هستم
+          </label>
         </div>
         <div className="sm:col-span-2">
           <p className="text-xs text-ink/50">شماره موبایل: <span dir="ltr">{profile.phone}</span> (تغییر شماره نیاز به تأیید مجدد دارد)</p>

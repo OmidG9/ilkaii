@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import { listBrands } from "@/services/admin";
-import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
+import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 
 export const metadata: Metadata = { title: "برندها — مدیریت" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminBrandsPage() {
+  await requirePagePermission("products.view");
   const brands = await listBrands();
   const fields: EntityField[] = [
     { key: "name", label: "نام برند", type: "text", required: true },
@@ -25,7 +27,7 @@ export default async function AdminBrandsPage() {
           { key: "_count.products", label: "محصولات" },
           { key: "isActive", label: "وضعیت" },
         ]}
-        items={toEntityRows(brands)}
+        items={brands as unknown as Array<Record<string, unknown>>}
         createLabel="افزودن برند"
       />
     </div>

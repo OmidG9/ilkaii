@@ -1,43 +1,49 @@
-import type { RoleCode } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { PERMISSIONS } from "@/lib/permissions";
+import {
+  BUILT_IN_ROLES,
+  DEFAULT_GRANTS,
+  PERMISSIONS,
+  ROLE_DESCRIPTIONS,
+  ROLE_NAMES,
+  type BuiltInRoleCode,
+} from "@/lib/permissions";
 
-/** Idempotent role/permission provisioning. Safe to call on every boot. */
-export async function ensureRolesAndPermissions() {
-  const roleNames: Record<RoleCode, string> = {
-    SUPER_ADMIN: "مدیرکل",
-    ADMIN: "مدیر",
-    ORDER_MANAGER: "مدیر سفارشها",
-    PRODUCT_MANAGER: "مدیر محصول",
-    CUSTOMER: "مشتری",
-  };
-
+/**
+ * Idempotent role/permission provisioning. Safe to call on every boot.
+ *
+ * Only missing grants are added so operator customisations of built-in roles are
+ * preserved. Pass `{ sync: true }` to reset built-in roles to the code-defined
+ * matrix (used by tests/seed when an explicit reset is desired).
+ */
+export async function ensureRolesAndPermissions(options: { sync?: boolean } = {}) {
   for (const permission of PERMISSIONS) {
     await prisma.permission.upsert({
       where: { key: permission },
-      update: {},
+      update: { group: permission.split(".")[0] },
       create: { key: permission, group: permission.split(".")[0] },
     });
   }
 
-  for (const [code, name] of Object.entries(roleNames) as [RoleCode, string][]) {
-    await prisma.role.upsert({ where: { code }, update: { name }, create: { code, name } });
+  for (const code of BUILT_IN_ROLES) {
+    const name = ROLE_NAMES[code];
+    await prisma.role.upsert({
+      where: { code },
+      update: { name, description: ROLE_DESCRIPTIONS[code], isSystem: true },
+      create: { code, name, description: ROLE_DESCRIPTIONS[code], isSystem: true },
+    });
   }
 
   const allPermissions = await prisma.permission.findMany({ select: { id: true, key: true } });
-  const byKey = new Map(allPermissions.map((p) => [p.key as (typeof PERMISSIONS)[number], p.id]));
-  const grants: Record<RoleCode, readonly (typeof PERMISSIONS)[number][]> = {
-    SUPER_ADMIN: PERMISSIONS,
-    ADMIN: PERMISSIONS.filter((p) => p !== "setting.write"),
-    ORDER_MANAGER: ["order.read", "order.write", "customer.read"],
-    PRODUCT_MANAGER: ["product.read", "product.write", "inventory.write", "coupon.write"],
-    CUSTOMER: [],
-  };
+  const byKey = new Map(allPermissions.map((permission) => [permission.key, permission.id]));
 
-  for (const [code, keys] of Object.entries(grants) as [RoleCode, readonly (typeof PERMISSIONS)[number][]][]) {
+  for (const code of BUILT_IN_ROLES) {
     const role = await prisma.role.findUnique({ where: { code }, select: { id: true } });
     if (!role) continue;
-    for (const key of keys) {
+    const grants = DEFAULT_GRANTS[code as BuiltInRoleCode];
+    if (options.sync) {
+      await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    }
+    for (const key of grants) {
       const permissionId = byKey.get(key);
       if (!permissionId) continue;
       await prisma.rolePermission.upsert({

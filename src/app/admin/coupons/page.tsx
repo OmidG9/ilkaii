@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { requirePageAnyPermission } from "@/lib/auth/session";
 import { listCoupons } from "@/services/admin";
-import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
+import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 import { formatToman } from "@/lib/money";
 import { formatNumber } from "@/lib/persian";
 
@@ -8,8 +9,9 @@ export const metadata: Metadata = { title: "کدهای تخفیف — مدیری
 export const dynamic = "force-dynamic";
 
 export default async function AdminCouponsPage() {
+  await requirePageAnyPermission("marketing.manage", "coupon.write");
   const coupons = await listCoupons();
-  const rows = toEntityRows(coupons).map((coupon) => ({
+  const rows = (coupons as unknown as Array<Record<string, unknown>>).map((coupon) => ({
     ...coupon,
     valueLabel: coupon.type === "PERCENTAGE" ? `${formatNumber(Number(coupon.value))}٪` : formatToman(Number(coupon.value)),
   }));

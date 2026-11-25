@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { CartView } from "@/services/cart";
+import { track } from "@/lib/analytics-client";
 
 interface CartContextValue {
   cart: CartView | null;
@@ -58,6 +59,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const remove = useCallback(async (itemId: string) => {
     setCart(await readJson(await fetch(`/api/cart/items/${itemId}`, { method: "DELETE" })));
+    track("remove_from_cart", { metadata: { itemId } });
   }, []);
 
   const value = useMemo(() => ({ cart, loading, error, refresh, add, update, remove }), [cart, loading, error, refresh, add, update, remove]);

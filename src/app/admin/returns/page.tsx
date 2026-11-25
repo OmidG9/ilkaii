@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import { listReturns } from "@/services/admin";
-import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
+import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 import { formatToman, toToman } from "@/lib/money";
 import { formatJalali } from "@/lib/persian";
 import { returnStatusLabels } from "@/lib/labels";
@@ -9,8 +10,9 @@ export const metadata: Metadata = { title: "بازگشتها — مدیریت" }
 export const dynamic = "force-dynamic";
 
 export default async function AdminReturnsPage() {
+  await requirePagePermission("orders.view");
   const returns = await listReturns();
-  const rows = toEntityRows(returns.map((item) => ({
+  const rows = returns.map((item) => ({
     id: item.id,
     status: item.status,
     note: item.note,
@@ -19,7 +21,7 @@ export default async function AdminReturnsPage() {
     customer: [item.user.firstName, item.user.lastName].filter(Boolean).join(" ") || item.user.phone || "—",
     amount: formatToman(toToman(item.order.totalAmount)),
     createdAtLabel: formatJalali(item.createdAt.toISOString()),
-  })));
+  })) as unknown as Array<Record<string, unknown>>;
   const fields: EntityField[] = [
     { key: "status", label: "وضعیت", type: "select", required: true, options: [
       { value: "PENDING", label: "در انتظار بررسی" },

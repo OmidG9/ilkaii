@@ -13,14 +13,14 @@ type ReturnInput = z.infer<typeof returnSchema>;
 export async function getProfile(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, phone: true, firstName: true, lastName: true, email: true, avatar: true, createdAt: true, role: true },
+    select: { id: true, phone: true, firstName: true, lastName: true, email: true, avatar: true, createdAt: true, role: true, marketingOptIn: true },
   });
   if (!user) throw Errors.notFound("کاربر یافت نشد");
   return user;
 }
 
 export async function updateProfile(userId: string, input: ProfileInput) {
-  return prisma.user.update({ where: { id: userId }, data: input, select: { id: true, phone: true, firstName: true, lastName: true, email: true } });
+  return prisma.user.update({ where: { id: userId }, data: input, select: { id: true, phone: true, firstName: true, lastName: true, email: true, marketingOptIn: true } });
 }
 
 export async function listAddresses(userId: string) {

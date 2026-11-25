@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import { listAdminReviews } from "@/services/admin";
-import { EntityManager, toEntityRows, type EntityField } from "@/components/admin/entity-manager";
+import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 import { formatJalali } from "@/lib/persian";
 
 export const metadata: Metadata = { title: "نظرات — مدیریت" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminReviewsPage() {
+  await requirePagePermission("products.view");
   const reviews = await listAdminReviews();
-  const rows = toEntityRows(reviews.map((item) => ({
+  const rows = reviews.map((item) => ({
     ...item,
     customer: [item.user.firstName, item.user.lastName].filter(Boolean).join(" ") || item.user.phone || "—",
     dateLabel: formatJalali(item.createdAt.toISOString()),
     stars: "★".repeat(item.rating) + "☆".repeat(5 - item.rating),
-  })));
+  })) as unknown as Array<Record<string, unknown>>;
   const fields: EntityField[] = [
     { key: "isApproved", label: "نمایش نظر", type: "checkbox" },
   ];

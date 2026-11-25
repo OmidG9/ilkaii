@@ -15,33 +15,27 @@ datasource db {
 // Identity & access control
 // ---------------------------------------------------------------------------
 
-enum RoleCode {
-  SUPER_ADMIN
-  ADMIN
-  ORDER_MANAGER
-  PRODUCT_MANAGER
-  CUSTOMER
-}
-
+// Role codes are strings so operators can create custom roles. Built-in codes
+// are seeded by src/lib/permissions.ts (SUPER_ADMIN, ADMIN, CONTENT_MANAGER, …).
 model Role {
-  id          String          @id @default(cuid())
-  code        RoleCode        @unique
+  id          String           @id @default(cuid())
+  code        String           @unique @db.VarChar(64)
   name        String
   description String?
-  isSystem    Boolean         @default(true)
+  isSystem    Boolean          @default(true)
   users       UserRole[]
   permissions RolePermission[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model Permission {
-  id          String          @id @default(cuid())
-  key         String          @unique
+  id          String           @id @default(cuid())
+  key         String           @unique
   description String?
   group       String?
   roles       RolePermission[]
-  createdAt   DateTime        @default(now())
+  createdAt   DateTime         @default(now())
 }
 
 model RolePermission {
@@ -54,11 +48,11 @@ model RolePermission {
 }
 
 model UserRole {
-  userId      String
-  roleId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  assignedAt  DateTime @default(now())
+  userId       String
+  roleId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime @default(now())
   assignedById String?
 
   @@id([userId, roleId])
@@ -66,30 +60,36 @@ model UserRole {
 }
 
 model User {
-  id          String        @id @default(cuid())
-  phone       String        @unique // normalized Iranian number: 09123456789
-  email       String?       @unique
-  firstName   String?
-  lastName    String?
-  avatar      String?
-  isVerified  Boolean       @default(false)
-  // Kept as a fast-path role; UserRole is the source of truth for RBAC.
-  role        RoleCode      @default(CUSTOMER)
-  isActive    Boolean       @default(true)
-  lastLogin   DateTime?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id             String    @id @default(cuid())
+  phone          String    @unique // normalized Iranian number: 09123456789
+  email          String?   @unique
+  firstName      String?
+  lastName       String?
+  avatar         String?
+  isVerified     Boolean   @default(false)
+  // Fast-path copy of the primary role; UserRole is the source of truth for RBAC.
+  role           String    @default("CUSTOMER") @db.VarChar(64)
+  isActive       Boolean   @default(true)
+  // CRM-only fields. Never exposed on the storefront.
+  adminNote      String?   @db.Text
+  marketingOptIn Boolean   @default(false)
+  lastActivityAt DateTime?
+  lastLogin      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  roles       UserRole[]
-  sessions    Session[]
-  addresses   Address[]
-  cart        Cart?
-  wishlistItems WishlistItem[]
-  orders      Order[]
-  reviews     Review[]
-  returnRequests ReturnRequest[]
-  couponUsages CouponUsage[]
-  auditLogs   AuditLog[]
+  roles             UserRole[]
+  sessions          Session[]
+  addresses         Address[]
+  cart              Cart?
+  wishlistItems     WishlistItem[]
+  orders            Order[]
+  reviews           Review[]
+  returnRequests    ReturnRequest[]
+  couponUsages      CouponUsage[]
+  auditLogs         AuditLog[]
+  analyticsSessions AnalyticsSession[]
+  analyticsEvents   AnalyticsEvent[]
 }
 
 model Session {
@@ -109,35 +109,35 @@ model Session {
 }
 
 model OtpChallenge {
-  id               String    @id @default(cuid())
-  phone            String
-  codeHash         String
-  attempts         Int       @default(0)
-  maxAttempts      Int       @default(5)
-  expiresAt        DateTime
-  lastSentAt       DateTime  @default(now())
+  id                String    @id @default(cuid())
+  phone             String
+  codeHash          String
+  attempts          Int       @default(0)
+  maxAttempts       Int       @default(5)
+  expiresAt         DateTime
+  lastSentAt        DateTime  @default(now())
   resendAvailableAt DateTime  @default(now())
-  consumedAt       DateTime?
-  createdAt        DateTime  @default(now())
+  consumedAt        DateTime?
+  createdAt         DateTime  @default(now())
 
   @@index([phone])
   @@index([expiresAt])
 }
 
 model Address {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label       String
-  fullName    String
-  phone       String
-  province    String
-  city        String
-  street      String
-  postalCode  String
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label      String
+  fullName   String
+  phone      String
+  province   String
+  city       String
+  street     String
+  postalCode String
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([userId])
 }
@@ -147,38 +147,38 @@ model Address {
 // ---------------------------------------------------------------------------
 
 model Category {
-  id           String      @id @default(cuid())
-  name         String      @unique
-  slug         String      @unique
-  description  String?     @db.Text
+  id           String     @id @default(cuid())
+  name         String     @unique
+  slug         String     @unique
+  description  String?    @db.Text
   image        String?
   icon         String?
   parentId     String?
-  parent       Category?   @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children     Category[]  @relation("CategoryHierarchy")
-  isActive     Boolean     @default(true)
-  displayOrder Int         @default(0)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  parent       Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[] @relation("CategoryHierarchy")
+  isActive     Boolean    @default(true)
+  displayOrder Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  products     Product[]
-  sizeGuides   SizeGuide[]
+  products   Product[]
+  sizeGuides SizeGuide[]
 
   @@index([parentId])
   @@index([isActive, displayOrder])
 }
 
 model Brand {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?   @db.Text
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?  @db.Text
   logo        String?
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  products    Product[]
+  products Product[]
 }
 
 enum ProductStatus {
@@ -243,13 +243,13 @@ model Product {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  images            ProductImage[]
-  variants          ProductVariant[]
-  reviews           Review[]
-  wishlistItems     WishlistItem[]
-  cartItems         CartItem[]
-  orderItems        OrderItem[]
-  sizeGuides        SizeGuide[]
+  images        ProductImage[]
+  variants      ProductVariant[]
+  reviews       Review[]
+  wishlistItems WishlistItem[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+  sizeGuides    SizeGuide[]
 
   @@index([categoryId])
   @@index([status, isDeleted])
@@ -278,22 +278,22 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id               String          @id @default(cuid())
-  productId        String
-  product          Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  size             String
-  color            String?
-  sku              String          @unique
-  price            Decimal?        @db.Decimal(12, 2)
-  stock            Int             @default(0)
-  lowStockThreshold Int            @default(5)
-  isAvailable      Boolean         @default(true)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id                String   @id @default(cuid())
+  productId         String
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size              String
+  color             String?
+  sku               String   @unique
+  price             Decimal? @db.Decimal(12, 2)
+  stock             Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  isAvailable       Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  images           ProductImage[]
-  cartItems        CartItem[]
-  orderItems       OrderItem[]
+  images             ProductImage[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
   inventoryMovements InventoryMovement[]
 
   @@unique([productId, size, color])
@@ -302,18 +302,18 @@ model ProductVariant {
 }
 
 model SizeGuide {
-  id          String    @id @default(cuid())
-  name        String
-  slug        String    @unique
-  categoryId  String?
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  productId   String?
-  product     Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id         String    @id @default(cuid())
+  name       String
+  slug       String    @unique
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  productId  String?
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
   // Markdown/table content authored in the dashboard.
-  content     String    @db.Text
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  content    String    @db.Text
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([categoryId])
 }
@@ -323,14 +323,14 @@ model SizeGuide {
 // ---------------------------------------------------------------------------
 
 model Cart {
-  id          String     @id @default(cuid())
+  id         String     @id @default(cuid())
   // Guest carts are identified by an opaque, HttpOnly cookie token.
-  guestToken  String?    @unique
-  userId      String?    @unique
-  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items       CartItem[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  guestToken String?    @unique
+  userId     String?    @unique
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
 
 model CartItem {
@@ -411,51 +411,54 @@ enum InventoryReason {
 }
 
 model Order {
-  id              String          @id @default(cuid())
-  orderNumber     String          @unique
-  userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Restrict)
-  status          OrderStatus     @default(PENDING_PAYMENT)
-  paymentStatus   PaymentStatus   @default(PENDING)
-  paymentMethod   PaymentMethod   @default(ONLINE)
-  shippingMethod  ShippingMethod  @default(POSTAL)
+  id             String         @id @default(cuid())
+  orderNumber    String         @unique
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status         OrderStatus    @default(PENDING_PAYMENT)
+  paymentStatus  PaymentStatus  @default(PENDING)
+  paymentMethod  PaymentMethod  @default(ONLINE)
+  shippingMethod ShippingMethod @default(POSTAL)
 
   // Immutable delivery snapshot — historical orders must survive address edits.
-  recipientName   String
-  recipientPhone  String
-  province        String
-  city            String
-  street          String
-  postalCode      String
+  recipientName  String
+  recipientPhone String
+  province       String
+  city           String
+  street         String
+  postalCode     String
 
-  subtotal        Decimal         @db.Decimal(12, 2)
-  discountAmount  Decimal         @default(0) @db.Decimal(12, 2)
-  shippingCost    Decimal         @db.Decimal(12, 2)
-  totalAmount     Decimal         @db.Decimal(12, 2)
-  currency        String          @default("TOMAN")
-  couponId        String?
-  coupon          Coupon?         @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  subtotal           Decimal @db.Decimal(12, 2)
+  discountAmount     Decimal @default(0) @db.Decimal(12, 2)
+  shippingCost       Decimal @db.Decimal(12, 2)
+  totalAmount        Decimal @db.Decimal(12, 2)
+  currency           String  @default("TOMAN")
+  couponId           String?
+  coupon             Coupon? @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  // Anonymous analytics session captured at checkout for campaign attribution.
+  analyticsSessionId String?
 
-  trackingNumber  String?
+  trackingNumber    String?
   estimatedDelivery DateTime?
-  notes           String?         @db.Text
-  paidAt          DateTime?
-  cancelledAt     DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  notes             String?   @db.Text
+  paidAt            DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  items           OrderItem[]
-  payments        Payment[]
-  shipments       Shipment[]
-  statusHistory   OrderStatusHistory[]
+  items              OrderItem[]
+  payments           Payment[]
+  shipments          Shipment[]
+  statusHistory      OrderStatusHistory[]
   inventoryMovements InventoryMovement[]
-  couponUsages    CouponUsage[]
-  returnRequests  ReturnRequest[]
+  couponUsages       CouponUsage[]
+  returnRequests     ReturnRequest[]
 
   @@index([userId, createdAt])
   @@index([status])
   @@index([paymentStatus])
   @@index([orderNumber])
+  @@index([analyticsSessionId])
 }
 
 model OrderItem {
@@ -481,20 +484,20 @@ model OrderItem {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  orderId       String
-  order         Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  provider      String        @default("MOCK")
-  status        PaymentStatus @default(PENDING)
-  amount        Decimal       @db.Decimal(12, 2)
-  authority     String?       @unique
-  reference     String?       @unique
+  id             String        @id @default(cuid())
+  orderId        String
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  provider       String        @default("MOCK")
+  status         PaymentStatus @default(PENDING)
+  amount         Decimal       @db.Decimal(12, 2)
+  authority      String?       @unique
+  reference      String?       @unique
   // Unique callback key guarantees idempotent verification.
-  idempotencyKey String?      @unique
-  rawResponse   String?       @db.Text
-  failureReason String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  idempotencyKey String?       @unique
+  rawResponse    String?       @db.Text
+  failureReason  String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@index([orderId])
   @@index([status])
@@ -534,7 +537,7 @@ model InventoryMovement {
   variant   ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Restrict)
   orderId   String?
   order     Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  quantity  Int             // signed delta applied to variant.stock
+  quantity  Int // signed delta applied to variant.stock
   reason    InventoryReason
   note      String?
   userId    String?
@@ -554,23 +557,24 @@ enum CouponType {
 }
 
 model Coupon {
-  id            String       @id @default(cuid())
-  code          String       @unique
-  type          CouponType
-  value         Decimal      @db.Decimal(12, 2)
-  minPurchase   Decimal?     @db.Decimal(12, 2)
-  maxDiscount   Decimal?     @db.Decimal(12, 2)
-  usageLimit    Int?
-  perUserLimit  Int?
-  usedCount     Int          @default(0)
-  startsAt      DateTime?
-  expiresAt     DateTime?
-  isActive      Boolean      @default(true)
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  id           String     @id @default(cuid())
+  code         String     @unique
+  type         CouponType
+  value        Decimal    @db.Decimal(12, 2)
+  minPurchase  Decimal?   @db.Decimal(12, 2)
+  maxDiscount  Decimal?   @db.Decimal(12, 2)
+  usageLimit   Int?
+  perUserLimit Int?
+  usedCount    Int        @default(0)
+  startsAt     DateTime?
+  expiresAt    DateTime?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
-  usages        CouponUsage[]
-  orders        Order[]
+  usages    CouponUsage[]
+  orders    Order[]
+  campaigns MarketingCampaign[]
 
   @@index([isActive, expiresAt])
 }
@@ -590,19 +594,19 @@ model CouponUsage {
 }
 
 model Review {
-  id          String   @id @default(cuid())
-  productId   String
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rating      Int
-  title       String?
-  comment     String?  @db.Text
-  isApproved  Boolean  @default(false)
-  isVerified  Boolean  @default(false)
-  helpful     Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(cuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int
+  title      String?
+  comment    String?  @db.Text
+  isApproved Boolean  @default(false)
+  isVerified Boolean  @default(false)
+  helpful    Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([userId, productId])
   @@index([productId, isApproved])
@@ -640,12 +644,17 @@ model AuditLog {
   entity     String
   entityId   String?
   metadata   String?  @db.Text
+  // Safe, redacted snapshots for security-sensitive mutations.
+  beforeJson String?  @db.LongText
+  afterJson  String?  @db.LongText
+  requestId  String?  @db.VarChar(64)
   severity   String   @default("info")
   ip         String?
   createdAt  DateTime @default(now())
 
   @@index([actorId, createdAt])
   @@index([action, createdAt])
+  @@index([entity, entityId])
 }
 
 // White-label configuration: site identity, theme tokens, feature flags and
@@ -654,4 +663,398 @@ model SiteSetting {
   key       String   @id
   value     String   @db.Text
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// CMS — homepage builder, pages, navigation, media and blog
+// ---------------------------------------------------------------------------
+
+enum CmsStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum HomepageSectionType {
+  HERO
+  BANNER
+  FEATURED_CATEGORIES
+  FEATURED_PRODUCTS
+  NEW_ARRIVALS
+  BEST_SELLERS
+  PROMOTIONAL
+  SEASONAL_COLLECTION
+  TESTIMONIALS
+  CUSTOM_CONTENT
+}
+
+enum MenuLocation {
+  HEADER
+  FOOTER
+  MOBILE
+}
+
+model CmsPage {
+  id              String    @id @default(cuid())
+  slug            String    @unique @db.VarChar(160)
+  title           String    @db.VarChar(200)
+  excerpt         String?   @db.Text
+  content         String    @db.LongText
+  status          CmsStatus @default(DRAFT)
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  metaTitle       String?   @db.VarChar(200)
+  metaDescription String?   @db.VarChar(400)
+  ogImage         String?   @db.VarChar(1024)
+  authorId        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
+model HomepageSection {
+  id           String              @id @default(cuid())
+  type         HomepageSectionType
+  title        String?             @db.VarChar(200)
+  subtitle     String?             @db.VarChar(400)
+  // Validated JSON schema; administrators never inject HTML/JS.
+  config       Json
+  displayOrder Int                 @default(0)
+  isEnabled    Boolean             @default(true)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([isEnabled, displayOrder])
+  @@index([startsAt, endsAt])
+}
+
+model Banner {
+  id           String    @id @default(cuid())
+  title        String    @db.VarChar(200)
+  subtitle     String?   @db.VarChar(400)
+  image        String    @db.VarChar(1024)
+  mobileImage  String?   @db.VarChar(1024)
+  href         String?   @db.VarChar(1024)
+  placement    String    @default("HOME") @db.VarChar(40)
+  isActive     Boolean   @default(true)
+  displayOrder Int       @default(0)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([placement, isActive, displayOrder])
+}
+
+model Menu {
+  id        String       @id @default(cuid())
+  location  MenuLocation @unique
+  name      String       @db.VarChar(120)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  items     MenuItem[]
+}
+
+model MenuItem {
+  id           String     @id @default(cuid())
+  menuId       String
+  menu         Menu       @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       MenuItem?  @relation("MenuItemHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children     MenuItem[] @relation("MenuItemHierarchy")
+  label        String     @db.VarChar(120)
+  href         String     @db.VarChar(1024)
+  target       String     @default("_self") @db.VarChar(10)
+  displayOrder Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([menuId, parentId, displayOrder])
+}
+
+model MediaAsset {
+  id           String   @id @default(cuid())
+  url          String   @unique @db.VarChar(1024)
+  publicId     String?  @db.VarChar(512)
+  altText      String?  @db.VarChar(300)
+  mimeType     String   @db.VarChar(120)
+  size         Int      @default(0)
+  width        Int?
+  height       Int?
+  folder       String?  @db.VarChar(160)
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([mimeType])
+  @@index([folder])
+}
+
+model BlogPost {
+  id              String    @id @default(cuid())
+  slug            String    @unique @db.VarChar(180)
+  title           String    @db.VarChar(220)
+  excerpt         String?   @db.Text
+  content         String    @db.LongText
+  coverImage      String?   @db.VarChar(1024)
+  status          CmsStatus @default(DRAFT)
+  publishedAt     DateTime?
+  scheduledAt     DateTime?
+  authorId        String?
+  tags            String?   @db.VarChar(500)
+  readingMinutes  Int       @default(4)
+  metaTitle       String?   @db.VarChar(220)
+  metaDescription String?   @db.VarChar(400)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+// ---------------------------------------------------------------------------
+// First-party behavioural analytics
+// ---------------------------------------------------------------------------
+
+model AnalyticsSession {
+  id          String   @id // anonymous random token, never a device fingerprint
+  customerId  String?
+  customer    User?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  entryPath   String?  @db.VarChar(512)
+  exitPath    String?  @db.VarChar(512)
+  referrer    String?  @db.VarChar(1024)
+  utmSource   String?  @db.VarChar(160)
+  utmMedium   String?  @db.VarChar(160)
+  utmCampaign String?  @db.VarChar(160)
+  device      String?  @db.VarChar(24)
+  browser     String?  @db.VarChar(48)
+  pageViews   Int      @default(0)
+  eventCount  Int      @default(0)
+  isBounced   Boolean  @default(true)
+  consent     Boolean  @default(true)
+  ipHash      String?  @db.VarChar(64)
+  createdAt   DateTime @default(now())
+
+  events AnalyticsEvent[]
+
+  @@index([firstSeenAt])
+  @@index([lastSeenAt])
+  @@index([customerId])
+  @@index([utmSource, utmCampaign])
+}
+
+model AnalyticsEvent {
+  id          String           @id @default(cuid())
+  // Client-generated id used for idempotent/deduplicated ingestion.
+  eventId     String           @unique @db.VarChar(64)
+  sessionId   String
+  session     AnalyticsSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  customerId  String?
+  customer    User?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  name        String           @db.VarChar(48)
+  path        String           @db.VarChar(512)
+  referrer    String?          @db.VarChar(1024)
+  device      String?          @db.VarChar(24)
+  browser     String?          @db.VarChar(48)
+  utmSource   String?          @db.VarChar(160)
+  utmMedium   String?          @db.VarChar(160)
+  utmCampaign String?          @db.VarChar(160)
+  productId   String?
+  categoryId  String?
+  variantId   String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+
+  @@index([name, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([productId, name, createdAt])
+  @@index([categoryId, name, createdAt])
+  @@index([createdAt])
+  @@index([utmSource, createdAt])
+}
+
+model AnalyticsDailyAggregate {
+  id           String   @id @default(cuid())
+  day          DateTime @unique @db.Date
+  visitors     Int      @default(0)
+  sessions     Int      @default(0)
+  pageViews    Int      @default(0)
+  productViews Int      @default(0)
+  addToCarts   Int      @default(0)
+  checkouts    Int      @default(0)
+  purchases    Int      @default(0)
+  revenue      Decimal  @default(0) @db.Decimal(14, 2)
+  updatedAt    DateTime @updatedAt
+
+  @@index([day])
+}
+
+model AnalyticsConsent {
+  id         String   @id @default(cuid())
+  sessionId  String?  @unique @db.VarChar(64)
+  customerId String?
+  analytics  Boolean  @default(false)
+  marketing  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([customerId])
+}
+
+// ---------------------------------------------------------------------------
+// Marketing, notifications and customer consent
+// ---------------------------------------------------------------------------
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+enum CampaignChannel {
+  EMAIL
+  SMS
+  BANNER
+}
+
+enum SubscriberStatus {
+  PENDING
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model MarketingCampaign {
+  id          String          @id @default(cuid())
+  name        String          @db.VarChar(180)
+  channel     CampaignChannel @default(EMAIL)
+  status      CampaignStatus  @default(DRAFT)
+  subject     String?         @db.VarChar(250)
+  content     String          @db.LongText
+  audience    String?         @db.VarChar(120)
+  couponId    String?
+  coupon      Coupon?         @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  utmSource   String?         @db.VarChar(160)
+  utmMedium   String?         @db.VarChar(160)
+  utmCampaign String?         @db.VarChar(160)
+  createdById String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status, startsAt])
+}
+
+model NewsletterSubscriber {
+  id               String           @id @default(cuid())
+  email            String?          @unique @db.VarChar(320)
+  phone            String?          @unique @db.VarChar(20)
+  status           SubscriberStatus @default(PENDING)
+  source           String?          @db.VarChar(120)
+  // Opaque token used for one-click unsubscribe links.
+  unsubscribeToken String?          @unique @db.VarChar(64)
+  customerId       String?
+  consentAt        DateTime?
+  unsubscribedAt   DateTime?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model NotificationLog {
+  id        String              @id @default(cuid())
+  channel   NotificationChannel
+  recipient String              @db.VarChar(320)
+  template  String?             @db.VarChar(120)
+  subject   String?             @db.VarChar(250)
+  status    NotificationStatus  @default(QUEUED)
+  provider  String              @db.VarChar(80)
+  error     String?             @db.Text
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  @@index([status, createdAt])
+  @@index([recipient, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Secure integration settings and operational monitoring
+// ---------------------------------------------------------------------------
+
+model IntegrationSecret {
+  id             String   @id @default(cuid())
+  key            String   @unique @db.VarChar(120)
+  encryptedValue String   @db.LongText
+  maskedHint     String?  @db.VarChar(64)
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum SystemEventLevel {
+  INFO
+  WARN
+  ERROR
+  CRITICAL
+}
+
+model BackgroundJob {
+  id         String    @id @default(cuid())
+  name       String    @db.VarChar(120)
+  status     JobStatus @default(PENDING)
+  payload    String?   @db.Text
+  result     String?   @db.Text
+  error      String?   @db.Text
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([status, createdAt])
+  @@index([name, createdAt])
+}
+
+model SystemEvent {
+  id        String           @id @default(cuid())
+  level     SystemEventLevel @default(INFO)
+  type      String           @db.VarChar(80)
+  message   String           @db.VarChar(512)
+  context   String?          @db.Text
+  createdAt DateTime         @default(now())
+
+  @@index([level, createdAt])
+  @@index([createdAt])
 }

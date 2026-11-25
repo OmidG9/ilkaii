@@ -13,23 +13,24 @@ export const viewport: Viewport = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const site = await getSiteConfig();
+  const title = site.seo.defaultTitle || `${site.name} | ${site.tagline}`;
+  const description = site.seo.defaultDescription || site.description;
   return {
     metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000"),
-    title: { default: `${site.name} | ${site.tagline}`, template: `%s | ${site.name}` },
-    description: site.description,
+    title: { default: title, template: `%s | ${site.name}` },
+    description,
     openGraph: {
       type: "website",
       locale: "fa_IR",
       siteName: site.name,
-      title: `${site.name} | ${site.tagline}`,
-      description: site.description,
+      title,
+      description,
     },
     robots: { index: true, follow: true },
   };
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const site = await getSiteConfig();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {  const site = await getSiteConfig();
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
   const structuredData = {
     "@context": "https://schema.org",
@@ -56,6 +57,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="fa" dir="rtl">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem("ilkaii_theme");if(t==="dark"){document.documentElement.dataset.theme="dark"}}catch(e){}`,
+          }}
+        />
         <style dangerouslySetInnerHTML={{ __html: themeVariables(site) }} />
         <JsonLd data={structuredData} />
       </head>

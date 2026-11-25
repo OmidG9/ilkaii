@@ -16,6 +16,14 @@ const groups: Group[] = [
     { key: "site.name", label: "نام فروشگاه", type: "text" },
     { key: "site.tagline", label: "شعار", type: "text" },
     { key: "site.description", label: "توضیحات", type: "text" },
+    { key: "site.logo", label: "آدرس لوگو", type: "text" },
+    { key: "site.locale", label: "زبان/لوکال", type: "text" },
+    { key: "site.currency", label: "واحد پول", type: "text" },
+    { key: "site.timezone", label: "منطقه زمانی", type: "text" },
+  ] },
+  { title: "SEO پیش‌فرض", fields: [
+    { key: "seo.defaultTitle", label: "عنوان پیش‌فرض", type: "text" },
+    { key: "seo.defaultDescription", label: "توضیح پیش‌فرض", type: "textarea" },
   ] },
   { title: "رنگهای پوسته", fields: [
     { key: "theme.primary", label: "رنگ اصلی", type: "color" },

@@ -12,6 +12,8 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1).optional(),
   CLOUDINARY_API_KEY: z.string().min(1).optional(),
   CLOUDINARY_API_SECRET: z.string().min(1).optional(),
+  CRON_SECRET: z.string().min(16).optional(),
+  EMAIL_API_URL: z.string().url().optional(),
   NEXT_PUBLIC_BASE_URL: z.string().url().default("http://localhost:3000"),
 });
 

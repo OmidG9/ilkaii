@@ -2,19 +2,58 @@ import Link from "next/link";
 import Image from "next/image";
 import { ArrowLeft, PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { getHomeData } from "@/services/catalog";
+import { getActiveBanners, getActiveHomepageSections } from "@/services/cms";
 import { getSiteConfig } from "@/config/site";
 import { ProductGrid } from "@/components/product-grid";
+import { HomepageSections } from "@/components/homepage-sections";
 import { ButtonLink } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/display";
 import { formatNumber, formatJalali } from "@/lib/persian";
 
 export const dynamic = "force-dynamic";
 
+function BannerStrip({ banners }: { banners: Array<{ id: string; title: string; image: string; href: string | null }> }) {
+  if (!banners.length) return null;
+  const safeHref = (value: string | null) => value && (value.startsWith("/") || /^https?:\/\//i.test(value)) ? value : "/shop";
+  return (
+    <section className="container-luxury mt-10 grid gap-4 sm:grid-cols-2">
+      {banners.map((banner) => (
+        <Link key={banner.id} href={safeHref(banner.href)} className="group relative block overflow-hidden rounded-luxury border border-line">
+          {/* Operator-supplied banner hosts are configurable; avoid build-time host validation. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={banner.image} alt={banner.title} loading="lazy" className="h-56 w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" />
+          <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-5 text-sm font-semibold text-white">{banner.title}</span>
+        </Link>
+      ))}
+    </section>
+  );
+}
+
 export default async function HomePage() {
-  const [{ featured, arrivals, bestSellers, categories }, site] = await Promise.all([
+  const [{ featured, arrivals, bestSellers, categories }, site, sections, banners] = await Promise.all([
     getHomeData(),
     getSiteConfig(),
+    getActiveHomepageSections(),
+    getActiveBanners("HOME"),
   ]);
+
+  if (sections.length) {
+    return (
+      <>
+        <HomepageSections
+          sections={sections.map((section) => ({
+            id: section.id, type: section.type, title: section.title,
+            subtitle: section.subtitle, parsedConfig: section.parsedConfig as Record<string, unknown>,
+          }))}
+          featured={featured}
+          arrivals={arrivals}
+          bestSellers={bestSellers}
+          categories={categories}
+        />
+        <BannerStrip banners={banners.map((banner) => ({ id: banner.id, title: banner.title, image: banner.image, href: banner.href }))} />
+      </>
+    );
+  }
 
   return (
     <>
@@ -54,6 +93,8 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      <BannerStrip banners={banners.map((banner) => ({ id: banner.id, title: banner.title, image: banner.image, href: banner.href }))} />
 
       <section aria-label="اظهارات اعتماد" className="container-luxury mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { requirePagePermission } from "@/lib/auth/session";
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 import { listInventoryMovements } from "@/services/admin";
+import { lowStockVariants } from "@/services/catalog";
 import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 import { Card, Pagination, SectionTitle } from "@/components/ui/display";
 import { formatJalali, formatNumber } from "@/lib/persian";
@@ -12,6 +14,7 @@ export const metadata: Metadata = { title: "موجودی — مدیریت" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminInventoryPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  await requirePagePermission("inventory.manage");
   const params = await searchParams;
   const rawPage = typeof params.page === "string" ? Number(params.page) : 1;
   const sku = typeof params.sku === "string" ? params.sku.slice(0, 64) : "";
@@ -25,12 +28,7 @@ export default async function AdminInventoryPage({ searchParams }: { searchParam
       take: 200,
       select: { id: true, sku: true, size: true, color: true, stock: true, product: { select: { name: true } } },
     }),
-    prisma.productVariant.findMany({
-      where: { stock: { lte: 5 }, isAvailable: true, product: { isDeleted: false } },
-      orderBy: { stock: "asc" },
-      take: 12,
-      select: { id: true, sku: true, stock: true, product: { select: { id: true, name: true } } },
-    }),
+    lowStockVariants().then((rows) => rows.slice(0, 12)),
   ]);
 
   const fields: EntityField[] = [

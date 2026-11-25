@@ -34,6 +34,23 @@ Prisma will refuse to baseline automatically. Recommended procedure:
 5. Verify `_prisma_migrations` contains one applied row and that the application
    can read products, orders and sessions.
 
+## Control Center migrations
+
+The Control Center adds three forward-only migrations on top of the initial
+domain model:
+
+1. `20261125120000_control_center_core` — CMS/analytics/marketing/operations
+   tables, string role codes, audit snapshots, customer CRM fields.
+2. `20261125130000_order_analytics_link` — anonymous analytics session link on
+   orders for campaign/purchase attribution.
+3. `20261125140000_newsletter_unsubscribe` — opaque unsubscribe tokens.
+
+Apply with `npx prisma migrate deploy`. `Role.code` and `User.role` are converted
+from MySQL enums to `VARCHAR(64)`; existing values are preserved. After applying,
+run `npm run db:seed` (development only) or call the idempotent role bootstrap so
+the new built-in roles and permissions exist. Custom roles can then be created
+from `/admin/roles`.
+
 ## Resetting a development database
 
 ```bash

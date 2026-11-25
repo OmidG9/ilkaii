@@ -42,7 +42,17 @@ flag are loaded from the database on each request (`getSessionUser`).
 | ADMIN | all except settings and role grants |
 | ORDER_MANAGER | orders + read customers |
 | PRODUCT_MANAGER | products, inventory, coupons |
+| CONTENT_MANAGER | CMS pages, homepage, banners, menus, media, blog |
+| MARKETING_MANAGER | campaigns, subscribers, coupons, analytics reads |
+| ANALYST | analytics/reports/audit reads and exports |
+| SUPPORT_AGENT | customer reads, order reads, limited customer updates |
 | CUSTOMER | storefront only |
+
+The Control Center extended RBAC with custom roles and namespaced permissions.
+See `docs/ADMIN_SECURITY.md` for escalations guards, encrypted integration
+secrets, admin session revocation, audit snapshots and analytics privacy
+controls. Every new admin route is permission-checked independently; hiding a
+navigation item is never an authorization mechanism.
 
 ## 3. Request integrity
 

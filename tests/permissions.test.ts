@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PERMISSIONS, roleCanAccessAdmin, roleHasPermission } from "../src/lib/permissions";
+import {
+  PERMISSIONS,
+  expandPermissionKeys,
+  roleCanAccessAdmin,
+  roleHasPermission,
+  roleLabel,
+  BUILT_IN_ROLES,
+} from "../src/lib/permissions";
 
 test("super admin has every permission", () => {
   for (const permission of PERMISSIONS) {
@@ -33,4 +40,30 @@ test("customers have no admin permission and cannot access the dashboard", () =>
   assert.equal(roleCanAccessAdmin("CUSTOMER"), false);
   assert.equal(roleCanAccessAdmin("ADMIN"), true);
   assert.equal(roleCanAccessAdmin("ORDER_MANAGER"), true);
+});
+
+test("content, marketing, analyst and support roles follow least privilege", () => {
+  assert.equal(roleHasPermission("CONTENT_MANAGER", "cms.manage"), true);
+  assert.equal(roleHasPermission("CONTENT_MANAGER", "products.update"), false);
+  assert.equal(roleHasPermission("MARKETING_MANAGER", "marketing.manage"), true);
+  assert.equal(roleHasPermission("MARKETING_MANAGER", "settings.manage"), false);
+  assert.equal(roleHasPermission("ANALYST", "analytics.view"), true);
+  assert.equal(roleHasPermission("ANALYST", "products.update"), false);
+  assert.equal(roleHasPermission("SUPPORT_AGENT", "orders.view"), true);
+  assert.equal(roleHasPermission("SUPPORT_AGENT", "orders.update"), false);
+});
+
+test("custom role codes have no implicit permissions and can access admin only with explicit grants", () => {
+  assert.equal(roleHasPermission("CUSTOM_MANAGER", "dashboard.view"), false);
+  assert.equal(roleLabel("CUSTOM_MANAGER"), "CUSTOM_MANAGER");
+  assert.equal(roleCanAccessAdmin("CUSTOM_MANAGER"), true);
+  assert.ok(BUILT_IN_ROLES.includes("SUPER_ADMIN"));
+});
+
+test("namespaced permissions expand to legacy aliases for existing endpoints", () => {
+  const expanded = expandPermissionKeys(["products.update", "orders.update", "customers.view", "settings.manage"]);
+  assert.ok(expanded.includes("product.write"));
+  assert.ok(expanded.includes("order.write"));
+  assert.ok(expanded.includes("customer.read"));
+  assert.ok(expanded.includes("setting.write"));
 });

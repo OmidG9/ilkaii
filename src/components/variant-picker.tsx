@@ -6,6 +6,7 @@ import { Heart, ShoppingBag } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { Button } from "@/components/ui/button";
 import { Alert, Price } from "@/components/ui/display";
+import { track } from "@/lib/analytics-client";
 import { formatNumber } from "@/lib/persian";
 
 interface Variant {
@@ -34,10 +35,27 @@ export function VariantPicker({ productId, price, variants }: Props) {
   const available = selected ? selected.isAvailable && selected.stock > 0 : variants.length > 0;
   const unitPrice = selected?.price && selected.price > 0 ? selected.price : price;
 
+  const selectColor = (value: string) => {
+    setColor(value);
+    const variant = variants.find((item) => item.color === value && item.size === size);
+    track("variant_selected", { productId, variantId: variant?.id, metadata: { color: value, size, dimension: "color" } });
+  };
+
+  const selectSize = (value: string) => {
+    setSize(value);
+    const variant = variants.find((item) => item.size === value && (item.color ?? "") === color);
+    track("variant_selected", { productId, variantId: variant?.id, metadata: { size: value, color, dimension: "size" } });
+  };
+
   const submit = async () => {
     setBusy(true);
     try {
       await add(productId, selected?.id, quantity);
+      track("add_to_cart", {
+        productId,
+        variantId: selected?.id,
+        metadata: { size: selected?.size ?? size, color: selected?.color ?? color, quantity, price: unitPrice },
+      });
       setMessage({ text: "محصول به سبد خرید اضافه شد", tone: "success" });
       router.refresh();
     } catch (error) {
@@ -55,10 +73,11 @@ export function VariantPicker({ productId, price, variants }: Props) {
     });
     const body = await response.json();
     if (!response.ok) {
-      setMessage({ text: "برای ذخیره علاقهمندیها لطفاً وارد شوید", tone: "error" });
+      setMessage({ text: "برای ذخیره علاقه‌مندی‌ها لطفاً وارد شوید", tone: "error" });
       return;
     }
-    setMessage({ text: body.data.added ? "به علاقهمندیها اضافه شد" : "از علاقهمندیها حذف شد", tone: "success" });
+    if (body.data.added) track("wishlist_add", { productId });
+    setMessage({ text: body.data.added ? "به علاقه‌مندی‌ها اضافه شد" : "از علاقه‌مندی‌ها حذف شد", tone: "success" });
   };
 
   return (
@@ -70,7 +89,7 @@ export function VariantPicker({ productId, price, variants }: Props) {
           <p className="mb-3 text-sm font-medium">رنگ: <span className="text-ink/60">{color}</span></p>
           <div className="flex flex-wrap gap-2">
             {colors.map((value) => (
-              <button key={value} type="button" onClick={() => setColor(value)} aria-pressed={color === value}
+              <button key={value} type="button" onClick={() => selectColor(value)} aria-pressed={color === value}
                 className={`min-h-11 rounded-xl border px-4 text-sm ${color === value ? "border-primary bg-primary text-white" : "border-line hover:border-primary"}`}>
                 {value}
               </button>
@@ -90,7 +109,7 @@ export function VariantPicker({ productId, price, variants }: Props) {
               const variant = variants.find((v) => v.size === value && (v.color ?? "") === color);
               const disabled = Boolean(variant && (!variant.isAvailable || variant.stock === 0));
               return (
-                <button key={value} type="button" onClick={() => setSize(value)} disabled={disabled} aria-pressed={size === value}
+                <button key={value} type="button" onClick={() => selectSize(value)} disabled={disabled} aria-pressed={size === value}
                   className={`min-h-11 min-w-11 rounded-xl border px-4 text-sm disabled:cursor-not-allowed disabled:opacity-40 ${size === value ? "border-primary bg-primary text-white" : "border-line hover:border-primary"}`}>
                   {value}
                 </button>
@@ -113,7 +132,7 @@ export function VariantPicker({ productId, price, variants }: Props) {
         <Button size="lg" onClick={submit} disabled={!available || busy} className="flex-1">
           <ShoppingBag className="h-5 w-5" />افزودن به سبد خرید
         </Button>
-        <button type="button" onClick={wishlist} aria-label="افزودن به علاقهمندیها" className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-line hover:border-primary">
+        <button type="button" onClick={wishlist} aria-label="افزودن به علاقه‌مندی‌ها" className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-line hover:border-primary">
           <Heart className="h-5 w-5" />
         </button>
       </div>

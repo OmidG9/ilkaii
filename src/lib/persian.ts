@@ -58,6 +58,17 @@ export function formatNumber(value: number | string): string {
   return new Intl.NumberFormat("fa-IR").format(Number(value));
 }
 
+export function formatSeconds(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return "—";
+  const total = Math.max(0, Math.round(Number(value)));
+  if (total < 60) return `${formatNumber(total)} ثانیه`;
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  if (minutes < 60) return `${formatNumber(minutes)} دقیقه${seconds ? ` و ${formatNumber(seconds)} ثانیه` : ""}`;
+  const hours = Math.floor(minutes / 60);
+  return `${formatNumber(hours)} ساعت و ${formatNumber(minutes % 60)} دقیقه`;
+}
+
 export function toEnglishDigits(input: string): string {
   return normalizeDigits(input);
 }

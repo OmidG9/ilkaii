@@ -40,6 +40,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       pathname={`/category/${category.slug}`}
       searchParams={await searchParams}
       fixedCategory={category.slug}
+      analyticsCategoryId={category.id}
       breadcrumb={{ label: category.name }}
     />
   );

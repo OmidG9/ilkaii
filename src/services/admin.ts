@@ -2,9 +2,11 @@ import type { OrderStatus, Prisma, ProductStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { Errors } from "@/lib/errors";
 import { audit } from "@/lib/audit";
+import { invalidateCache } from "@/lib/cache";
 import { toToman } from "@/lib/money";
 import { editableSettingKeys, getSiteConfig } from "@/config/site";
 import { cancelOrder } from "@/services/checkout";
+import { recordAnalyticsEvent } from "@/services/analytics";
 import type { z } from "zod";
 import type { couponSchema, orderStatusSchema, settingsSchema } from "@/lib/validation";
 
@@ -57,7 +59,7 @@ export async function getDashboardStats() {
   };
 }
 
-export async function listAdminOrders(params: { page: number; pageSize: number; status?: OrderStatus; q?: string }) {
+export async function listAdminOrders(params: { page: number; pageSize: number; status?: OrderStatus; q?: string; sort?: "newest" | "oldest" | "total-desc" | "total-asc" }) {
   const where: Prisma.OrderWhereInput = {
     ...(params.status ? { status: params.status } : {}),
     ...(params.q ? { OR: [
@@ -69,7 +71,7 @@ export async function listAdminOrders(params: { page: number; pageSize: number; 
   const [total, items] = await prisma.$transaction([
     prisma.order.count({ where }),
     prisma.order.findMany({
-      where, orderBy: { createdAt: "desc" },
+      where, orderBy: params.sort === "oldest" ? { createdAt: "asc" } : params.sort === "total-desc" ? { totalAmount: "desc" } : params.sort === "total-asc" ? { totalAmount: "asc" } : { createdAt: "desc" },
       skip: (params.page - 1) * params.pageSize, take: params.pageSize,
       include: { user: { select: { id: true, phone: true, firstName: true, lastName: true } }, _count: { select: { items: true } } },
     }),
@@ -125,6 +127,20 @@ export async function updateOrderStatus(id: string, input: OrderStatusInput, act
       });
     });
     await audit({ actorId, action: "order.refunded", entity: "Order", entityId: id, metadata: { note: input.note } });
+    if (order.analyticsSessionId) {
+      await recordAnalyticsEvent({
+        eventId: `refund-${id}`,
+        name: "refund",
+        path: "/admin/orders",
+        metadata: { revenue: -toToman(order.totalAmount), orderId: id, orderNumber: order.orderNumber },
+      }, {
+        sessionId: order.analyticsSessionId,
+        customerId: order.userId,
+        consentGranted: true,
+        serverEvent: true,
+      });
+    }
+    invalidateCache("dashboard:");
     return getAdminOrder(id);
   }
   await prisma.$transaction(async (tx) => {
@@ -147,6 +163,7 @@ export async function updateOrderStatus(id: string, input: OrderStatusInput, act
     }
     await audit({ actorId, action: "order.status_changed", entity: "Order", entityId: id, metadata: { from: order.status, to: input.status } });
   });
+  invalidateCache("dashboard:");
   return getAdminOrder(id);
 }
 
@@ -178,7 +195,7 @@ export async function listCustomers(params: { page: number; pageSize: number; q?
 
 export async function updateCustomer(
   id: string,
-  input: { role?: "SUPER_ADMIN" | "ADMIN" | "ORDER_MANAGER" | "PRODUCT_MANAGER" | "CUSTOMER"; isActive?: boolean },
+  input: { role?: string; isActive?: boolean },
   actorId: string,
 ) {
   const actor = await prisma.user.findUnique({ where: { id: actorId }, select: { role: true } });
@@ -292,10 +309,20 @@ export async function processReturn(id: string, status: "APPROVED" | "REJECTED" 
   return result;
 }
 
-export async function listAuditLogs(page = 1, pageSize = 30) {
+export async function listAuditLogs(page = 1, pageSize = 30, filters: { q?: string; severity?: string; entity?: string } = {}) {
+  const where: Prisma.AuditLogWhereInput = {
+    ...(filters.severity ? { severity: filters.severity } : {}),
+    ...(filters.entity ? { entity: filters.entity } : {}),
+    ...(filters.q ? { OR: [
+      { action: { contains: filters.q } },
+      { actorPhone: { contains: filters.q } },
+      { entityId: { contains: filters.q } },
+      { requestId: { contains: filters.q } },
+    ] } : {}),
+  };
   const [total, items] = await prisma.$transaction([
-    prisma.auditLog.count(),
-    prisma.auditLog.findMany({ orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize }),
+    prisma.auditLog.count({ where }),
+    prisma.auditLog.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * pageSize, take: pageSize }),
   ]);
   return { items, total, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
 }
@@ -315,7 +342,7 @@ async function recalcProductRating(productId: string) {
   });
 }
 
-export async function listAdminProducts(params: { page: number; pageSize: number; q?: string; status?: ProductStatus }) {
+export async function listAdminProducts(params: { page: number; pageSize: number; q?: string; status?: ProductStatus; sort?: "newest" | "price-asc" | "price-desc" | "stock-asc" | "name" }) {
   const where: Prisma.ProductWhereInput = {
     isDeleted: false,
     ...(params.status ? { status: params.status } : {}),
@@ -325,11 +352,16 @@ export async function listAdminProducts(params: { page: number; pageSize: number
       { searchText: { contains: params.q } },
     ] } : {}),
   };
+  const orderBy: Prisma.ProductOrderByWithRelationInput =
+    params.sort === "price-asc" ? { basePrice: "asc" } :
+    params.sort === "price-desc" ? { basePrice: "desc" } :
+    params.sort === "stock-asc" ? { availableStock: "asc" } :
+    params.sort === "name" ? { name: "asc" } : { createdAt: "desc" };
   const [total, items] = await prisma.$transaction([
     prisma.product.count({ where }),
     prisma.product.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy,
       skip: (params.page - 1) * params.pageSize,
       take: params.pageSize,
       include: {
@@ -498,5 +530,6 @@ export async function updateSettings(input: SettingsInput, actorId: string) {
     ),
   );
   await audit({ actorId, action: "settings.updated", entity: "SiteSetting", metadata: { keys: entries.map(([k]) => k) } });
+  invalidateCache("settings:");
   return getSettings();
 }

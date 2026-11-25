@@ -15,7 +15,7 @@ export const POST = route(async (request: NextRequest) => {
   const user = await verifyOtp(input.phone, input.otp, clientIp(request));
   const guestToken = (await cookies()).get(CART_COOKIE)?.value ?? null;
   await revokeSession();
-  await createSession(user.id);
+  await createSession(user.id, { ip: clientIp(request), userAgent: request.headers.get("user-agent") });
   await mergeGuestCart(guestToken, user.id);
   return ok({ id: user.id, phone: user.phone, role: user.role, firstName: user.firstName, lastName: user.lastName });
 });

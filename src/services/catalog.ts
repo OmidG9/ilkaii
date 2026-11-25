@@ -158,8 +158,17 @@ export async function getProductBySlug(slug: string) {
   };
 }
 
-export async function getCategories() {
-  return prisma.category.findMany({
+export async function listProductsByIds(ids: string[], limit = 12): Promise<ProductCard[]> {
+  if (!ids.length) return [];
+  const rows = await prisma.product.findMany({
+    where: { id: { in: ids.slice(0, limit) }, isDeleted: false, status: "ACTIVE" },
+    select: cardSelect,
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.map((id) => byId.get(id)).filter((row): row is NonNullable<typeof row> => Boolean(row)).map(toCard);
+}
+
+export async function getCategories() {  return prisma.category.findMany({
     where: { isActive: true },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: {
@@ -330,12 +339,23 @@ export async function recalcProductStock(
 }
 
 export async function lowStockVariants() {
+  const ids = await prisma.$queryRaw<Array<{ id: string }>>`
+    SELECT v.id FROM ProductVariant v JOIN Product p ON p.id = v.productId
+    WHERE v.isAvailable = 1 AND v.stock <= v.lowStockThreshold AND p.isDeleted = 0
+    ORDER BY v.stock ASC LIMIT 50`;
+  if (!ids.length) return [];
   return prisma.productVariant.findMany({
-    where: { stock: { lte: 5 }, isAvailable: true, product: { isDeleted: false } },
+    where: { id: { in: ids.map((row) => row.id) } },
     include: { product: { select: { id: true, name: true, slug: true, isDeleted: true } } },
     orderBy: { stock: "asc" },
-    take: 50,
   });
+}
+
+export async function countLowStockVariants(): Promise<number> {
+  const rows = await prisma.$queryRaw<Array<{ total: unknown }>>`
+    SELECT COUNT(*) AS total FROM ProductVariant v JOIN Product p ON p.id = v.productId
+    WHERE v.isAvailable = 1 AND v.stock <= v.lowStockThreshold AND p.isDeleted = 0`;
+  return Number(rows[0]?.total ?? 0);
 }
 
 export async function createCategory(input: CategoryInput) {

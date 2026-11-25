@@ -7,6 +7,7 @@ import { ProductGallery } from "@/components/product-gallery";
 import { VariantPicker } from "@/components/variant-picker";
 import { ProductGrid } from "@/components/product-grid";
 import { ReviewForm } from "@/components/review-form";
+import { TrackEvent } from "@/components/track-event";
 import { JsonLd } from "@/components/json-ld";
 import { Badge, Breadcrumbs, Card, SectionTitle } from "@/components/ui/display";
 import { formatJalali, formatNumber } from "@/lib/persian";
@@ -87,6 +88,7 @@ export default async function ProductPage({ params }: Props) {
     <div className="container-luxury py-10">
       <JsonLd data={structuredData} />
       <JsonLd data={breadcrumbData} />
+      <TrackEvent name="product_view" properties={{ productId: product.id, categoryId: product.category.id }} />
       <Breadcrumbs items={[{ label: product.category.name, href: `/category/${product.category.slug}` }, { label: product.name }]} />
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
         <ProductGallery
