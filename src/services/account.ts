@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { Errors } from "@/lib/errors";
 import { audit } from "@/lib/audit";
 import { toToman } from "@/lib/money";
+import { computeReturnableLines, hasOpenReturnWindow, isReturnEligibleStatus } from "@/lib/returns";
 import type { z } from "zod";
 import type { addressSchema, profileSchema, reviewSchema, returnSchema } from "@/lib/validation";
 
@@ -59,10 +60,23 @@ export async function listUserOrders(userId: string, page = 1, pageSize = 10) {
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
-      include: { items: { select: { productName: true, quantity: true, imageUrl: true, lineTotal: true } } },
+      include: {
+        items: { select: { productName: true, quantity: true, imageUrl: true, lineTotal: true } },
+        statusHistory: { where: { toStatus: "DELIVERED" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
+      },
     }),
   ]);
-  return { items: orders.map((order) => ({ ...order, total: toToman(order.totalAmount), items: order.items.map((i) => ({ ...i, lineTotal: toToman(i.lineTotal) })) })), total, page, pageCount: Math.max(1, Math.ceil(total / pageSize)) };
+  return {
+    items: orders.map(({ statusHistory, ...order }) => ({
+      ...order,
+      total: toToman(order.totalAmount),
+      items: order.items.map((i) => ({ ...i, lineTotal: toToman(i.lineTotal) })),
+      returnWindowOpen: hasOpenReturnWindow(order.status, statusHistory[0]?.createdAt ?? null),
+    })),
+    total,
+    page,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
 }
 
 export async function getUserOrder(userId: string, orderNumber: string) {
@@ -77,6 +91,10 @@ export async function getUserOrder(userId: string, orderNumber: string) {
         orderBy: { createdAt: "desc" },
         include: { items: { select: { orderItemId: true, quantity: true } } },
       },
+      refunds: {
+        orderBy: { createdAt: "desc" },
+        select: { id: true, amount: true, status: true, reference: true, createdAt: true },
+      },
     },
   });
   if (!order) throw Errors.notFound("سفارش یافت نشد");
@@ -87,6 +105,7 @@ export async function getUserOrder(userId: string, orderNumber: string) {
     shipping: toToman(order.shippingCost),
     total: toToman(order.totalAmount),
     items: order.items.map((item) => ({ ...item, unitPrice: toToman(item.unitPrice), lineTotal: toToman(item.lineTotal) })),
+    refunds: order.refunds.map((refund) => ({ ...refund, amount: toToman(refund.amount) })),
   };
 }
 
@@ -190,10 +209,22 @@ export async function createReturn(userId: string, input: ReturnInput) {
       id: true,
       status: true,
       items: { select: { id: true, quantity: true, productName: true } },
+      statusHistory: {
+        where: { toStatus: "DELIVERED" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
     },
   });
   if (!order) throw Errors.notFound("سفارش یافت نشد");
-  if (!["DELIVERED", "SHIPPED"].includes(order.status)) throw Errors.badRequest("امکان درخواست بازگشت برای این سفارش وجود ندارد");
+  if (!hasOpenReturnWindow(order.status, order.statusHistory[0]?.createdAt ?? null)) {
+    throw Errors.badRequest(
+      isReturnEligibleStatus(order.status)
+        ? "مهلت ۷ روزهٔ بازگشت این سفارش به پایان رسیده است"
+        : "امکان درخواست بازگشت برای این سفارش وجود ندارد",
+    );
+  }
 
   const orderItems = new Map(order.items.map((item) => [item.id, item]));
   for (const requested of input.items) {
@@ -241,6 +272,46 @@ export async function createReturn(userId: string, input: ReturnInput) {
       items: { include: { orderItem: { select: { productName: true, variantName: true, sku: true } } } },
     },
   });
+}
+
+/**
+ * Orders the customer can still request a return for, with the remaining
+ * quantity of every line. Used by the dedicated returns entry page.
+ */
+export async function listReturnableOrders(userId: string) {
+  const orders = await prisma.order.findMany({
+    where: { userId, status: { in: ["SHIPPED", "DELIVERED"] } },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+    select: {
+      id: true,
+      orderNumber: true,
+      status: true,
+      createdAt: true,
+      items: { select: { id: true, productName: true, variantName: true, quantity: true } },
+      statusHistory: {
+        where: { toStatus: "DELIVERED" },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+      returnRequests: {
+        where: { status: { not: "REJECTED" } },
+        select: { items: { select: { orderItemId: true, quantity: true } } },
+      },
+    },
+  });
+
+  return orders
+    .filter((order) => hasOpenReturnWindow(order.status, order.statusHistory[0]?.createdAt ?? null))
+    .map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      createdAt: order.createdAt,
+      lines: computeReturnableLines(order.items, order.returnRequests),
+    }))
+    .filter((order) => order.lines.some((line) => line.returnable > 0));
 }
 
 export async function listMyReturns(userId: string) {

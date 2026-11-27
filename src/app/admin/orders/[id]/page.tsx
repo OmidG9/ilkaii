@@ -3,10 +3,11 @@ import { requirePagePermission } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
 import { getAdminOrder, ORDER_TRANSITIONS } from "@/services/admin";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
+import { RefundForm } from "@/components/admin/refund-form";
 import { Card, SectionTitle } from "@/components/ui/display";
 import { formatToman } from "@/lib/money";
 import { formatJalali, formatNumber } from "@/lib/persian";
-import { orderStatusLabels, paymentGatewayLabels, paymentStatusLabels, shippingMethodLabels } from "@/lib/labels";
+import { orderStatusLabels, paymentGatewayLabels, paymentStatusLabels, refundStatusLabels, shippingMethodLabels } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "جزئیات سفارش — مدیریت" };
 export const dynamic = "force-dynamic";
@@ -109,10 +110,40 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               </div>
             </Card>
           ) : null}
+
+          <Card className="p-6">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <h2 className="text-lg font-semibold">بازپرداخت‌ها</h2>
+              <p className="text-xs text-ink/55">
+                ثبت‌شده: {formatToman(order.refundedTotal)} — باقی‌مانده: {formatToman(order.remainingRefundable)}
+              </p>
+            </div>
+            {order.refunds.length ? (
+              <div className="table-wrap">
+                <table className="table-luxury">
+                  <thead><tr><th>مبلغ</th><th>وضعیت</th><th>مرجع</th><th>تاریخ</th><th>اپراتور</th></tr></thead>
+                  <tbody>
+                    {order.refunds.map((refund) => (
+                      <tr key={refund.id}>
+                        <td dir="ltr">{formatToman(refund.amount)}</td>
+                        <td>{refundStatusLabels[refund.status]}</td>
+                        <td dir="ltr">{refund.reference ?? "—"}</td>
+                        <td>{formatJalali(refund.createdAt)}</td>
+                        <td>{refund.actor ? (refund.actor.phone ?? "—") : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : <p className="text-sm text-ink/55">هنوز بازپرداختی ثبت نشده است.</p>}
+          </Card>
         </div>
 
         <div className="space-y-6">
           <OrderStatusForm orderId={order.id} currentStatus={order.status} transitions={ORDER_TRANSITIONS[order.status] ?? []} labels={orderStatusLabels} />
+          {order.paymentStatus === "PAID" ? (
+            <RefundForm orderId={order.id} remainingRefundable={order.remainingRefundable} />
+          ) : null}
           <Card className="p-6">
             <h2 className="mb-4 text-lg font-semibold">مشتری</h2>
             <p className="text-sm">{order.user ? [order.user.firstName, order.user.lastName].filter(Boolean).join(" ") || "—" : "—"}</p>

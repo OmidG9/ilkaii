@@ -1,6 +1,6 @@
 # Control Center — Implementation Progress
 
-Updated: 2026-11-25
+Updated: 2026-11-27
 
 ## Status legend
 
@@ -53,6 +53,11 @@ Updated: 2026-11-25
 
 - `[x]` Products/variants/images/pricing/status, categories, brands, inventory
   ledger, low-stock alerts, product duplication.
+- `[x]` Warehouse module (see `docs/WAREHOUSE.md`): suppliers, purchase orders
+  with draft/ordered/partial/received lifecycle, transactional receipt with
+  weighted-average cost, stocktakes with variance application, barcode/bin
+  fields, cost and retail valuation, dead-stock and reorder suggestions,
+  running-balance ledger, CSV export and overdue purchase-order notifications.
 - `[x]` Bulk status, price (set/percent), stock (set/increment), feature and
   archive actions with transactions and audit logs.
 - `[x]` Orders list/detail, validated status transitions, shipments, payments,
@@ -145,9 +150,9 @@ Updated: 2026-11-25
 
 ## Phase 13 — Testing — `[~]`
 
-- `[x]` 47 unit tests: money/coupons/shipping, Persian helpers, validation,
+- `[x]` 72 unit tests: money/coupons/shipping, Persian helpers, validation,
   RBAC (incl. new roles/custom/aliases), Tehran date ranges, analytics schema,
-  CSV escaping.
+  CSV escaping and warehouse purchasing/stocktake schemas.
 - `[x]` Live MySQL smoke tests for admin routes, analytics ingestion/dedup,
   CMS CRUD, role CRUD, bulk product actions, campaign dispatch (mock), secrets,
   reports/customer CSV, health and maintenance.
@@ -168,7 +173,7 @@ Updated: 2026-11-25
 | --- | --- |
 | `npx prisma migrate deploy` | 3 Control Center migrations applied to MySQL |
 | `npm run type-check` | passes |
-| `npm test` | 47/47 passing |
+| `npm test` | 72/72 passing |
 | `npm run build` | succeeds, all admin/storefront/API routes compiled |
 | Admin route smoke (SUPER_ADMIN) | dashboard, analytics, reports, customers, CMS, marketing, settings, system, roles, users, security, audit, products, inventory, orders, returns, reviews, coupons → 200 |
 | Analytics ingestion | accepted valid browser events; duplicate `eventId` → `duplicate`; `curl` UA → `bot`; consent endpoint works |

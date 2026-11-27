@@ -6,7 +6,9 @@ import { invalidateCache } from "@/lib/cache";
 import { toToman } from "@/lib/money";
 import { editableSettingKeys, getSiteConfig } from "@/config/site";
 import { cancelOrder } from "@/services/checkout";
-import { recordAnalyticsEvent } from "@/services/analytics";
+import { registerRefund } from "@/services/refunds";
+import { notifyOrder, notifyReturn } from "@/services/messaging";
+import { recordInventoryMovement } from "@/services/inventory-ledger";
 import type { z } from "zod";
 import type { couponSchema, orderStatusSchema, settingsSchema } from "@/lib/validation";
 
@@ -17,7 +19,9 @@ type SettingsInput = z.infer<typeof settingsSchema>;
 /** Single source of truth for admin order status transitions. */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING_PAYMENT: ["PAID", "CANCELLED"],
-  PAID: ["PROCESSING", "CANCELLED", "REFUNDED"],
+  // A paid order is refunded, never "cancelled": cancellation would otherwise
+  // mark the payment refunded without a refund ledger entry.
+  PAID: ["PROCESSING", "REFUNDED"],
   PROCESSING: ["PACKED", "CANCELLED"],
   PACKED: ["SHIPPED"],
   SHIPPED: ["DELIVERED", "REFUNDED"],
@@ -90,16 +94,27 @@ export async function getAdminOrder(id: string) {
       shipments: true,
       statusHistory: { orderBy: { createdAt: "asc" } },
       returnRequests: true,
+      refunds: {
+        orderBy: { createdAt: "desc" },
+        include: { actor: { select: { phone: true, firstName: true, lastName: true } } },
+      },
     },
   });
   if (!order) throw Errors.notFound("سفارش یافت نشد");
+  const refundedTotal = order.refunds
+    .filter((refund) => refund.status === "COMPLETED")
+    .reduce((sum, refund) => sum + toToman(refund.amount), 0);
+  const total = toToman(order.totalAmount);
   return {
     ...order,
     subtotal: toToman(order.subtotal), discount: toToman(order.discountAmount),
-    shipping: toToman(order.shippingCost), total: toToman(order.totalAmount),
+    shipping: toToman(order.shippingCost), total,
     items: order.items.map((i) => ({ ...i, unitPrice: toToman(i.unitPrice), lineTotal: toToman(i.lineTotal) })),
     payments: order.payments.map((payment) => ({ ...payment, amount: toToman(payment.amount) })),
     returnRequests: order.returnRequests.map((request) => ({ ...request })),
+    refunds: order.refunds.map((refund) => ({ ...refund, amount: toToman(refund.amount) })),
+    refundedTotal,
+    remainingRefundable: Math.max(0, total - refundedTotal),
   };
 }
 
@@ -115,33 +130,19 @@ export async function updateOrderStatus(id: string, input: OrderStatusInput, act
   }
   if (input.status === "REFUNDED") {
     if (order.paymentStatus !== "PAID") throw Errors.conflict("فقط سفارش پرداخت‌شده قابل بازپرداخت است");
-    // Refunds can happen after shipping, so they must not reuse cancelOrder
-    // (which forbids shipped/delivered orders). Restocking is handled by the
-    // return workflow when goods are actually received back.
-    await prisma.$transaction(async (tx) => {
-      await tx.order.update({ where: { id }, data: { status: "REFUNDED", paymentStatus: "REFUNDED" } });
-      await tx.payment.updateMany({ where: { orderId: id }, data: { status: "REFUNDED" } });
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: id, fromStatus: order.status, toStatus: "REFUNDED",
-          note: input.note ?? "بازپرداخت ثبت شد", changedById: actorId,
-        },
-      });
+    // The status transition is a convenience full refund; partial refunds use
+    // the dedicated refund form and ledger.
+    const refunded = await prisma.refund.aggregate({
+      where: { orderId: id, status: "COMPLETED" },
+      _sum: { amount: true },
     });
-    await audit({ actorId, action: "order.refunded", entity: "Order", entityId: id, metadata: { note: input.note } });
-    if (order.analyticsSessionId) {
-      await recordAnalyticsEvent({
-        eventId: `refund-${id}`,
-        name: "refund",
-        path: "/admin/orders",
-        metadata: { revenue: -toToman(order.totalAmount), orderId: id, orderNumber: order.orderNumber },
-      }, {
-        sessionId: order.analyticsSessionId,
-        customerId: order.userId,
-        consentGranted: true,
-        serverEvent: true,
-      });
-    }
+    const remaining = toToman(order.totalAmount) - toToman(refunded._sum.amount ?? 0);
+    if (remaining <= 0) throw Errors.conflict("این سفارش قبلاً به‌طور کامل بازپرداخت شده است");
+    await registerRefund(id, {
+      amount: remaining,
+      reason: input.note ?? "بازپرداخت کامل سفارش",
+      status: "COMPLETED",
+    }, actorId);
     invalidateCache("dashboard:");
     return getAdminOrder(id);
   }
@@ -171,9 +172,23 @@ export async function updateOrderStatus(id: string, input: OrderStatusInput, act
       });
       await tx.order.update({ where: { id }, data: { trackingNumber: input.trackingNumber } });
     }
+    if (input.status === "DELIVERED") {
+      await tx.shipment.updateMany({
+        where: { orderId: id, deliveredAt: null },
+        data: { status: "DELIVERED", deliveredAt: new Date() },
+      });
+    } else if (input.status === "SHIPPED") {
+      await tx.shipment.updateMany({
+        where: { orderId: id, shippedAt: null },
+        data: { shippedAt: new Date() },
+      });
+    }
     await audit({ actorId, action: "order.status_changed", entity: "Order", entityId: id, metadata: { from: order.status, to: input.status } });
   });
   invalidateCache("dashboard:");
+  if (input.status === "SHIPPED" || input.status === "DELIVERED" || input.status === "PAID") {
+    void notifyOrder(id, input.status);
+  }
   return getAdminOrder(id);
 }
 
@@ -333,11 +348,15 @@ export async function processReturn(id: string, status: "APPROVED" | "REJECTED" 
           select: { productId: true },
         });
         touchedProducts.add(variant.productId);
-        await tx.inventoryMovement.create({
-          data: {
-            variantId: line.variantId, orderId: existing.orderId, quantity: line.quantity,
-            reason: "RETURN", note: `بازگشت ${line.productName}`, userId: actorId,
-          },
+        await recordInventoryMovement(tx, {
+          variantId: line.variantId,
+          orderId: existing.orderId,
+          quantity: line.quantity,
+          reason: "RETURN",
+          note: `بازگشت ${line.productName}`,
+          userId: actorId,
+          referenceType: "RETURN_REQUEST",
+          referenceId: id,
         });
       }
       for (const productId of touchedProducts) {
@@ -354,6 +373,7 @@ export async function processReturn(id: string, status: "APPROVED" | "REJECTED" 
     actorId, action: "return.processed", entity: "ReturnRequest", entityId: id,
     metadata: { status },
   });
+  void notifyReturn(id, status);
   return result;
 }
 
@@ -466,6 +486,7 @@ export async function getAdminProduct(id: string) {
     variants: product.variants.map((variant) => ({
       ...variant,
       price: variant.price ? toToman(variant.price) : null,
+      costPrice: variant.costPrice ? toToman(variant.costPrice) : null,
     })),
     movements,
   };

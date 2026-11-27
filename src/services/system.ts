@@ -70,15 +70,17 @@ async function localUploadsUsage() {
 
 export async function getSystemOverview() {
   const day = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const [health, failedPayments, failedJobs, recentJobs, events, securityEvents, media, local, counts, backupSetting] = await Promise.all([
+  const [health, failedPayments, failedJobs, failedNotifications, recentJobs, events, securityEvents, media, local, notificationLogs, counts, backupSetting] = await Promise.all([
     checkHealth(),
     prisma.payment.count({ where: { status: "FAILED", createdAt: { gte: day } } }),
     prisma.backgroundJob.count({ where: { status: "FAILED" } }),
+    prisma.notificationLog.count({ where: { status: "FAILED", createdAt: { gte: day } } }),
     prisma.backgroundJob.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
     prisma.systemEvent.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
     prisma.auditLog.findMany({ where: { severity: { in: ["warn", "critical"] }, createdAt: { gte: day } }, orderBy: { createdAt: "desc" }, take: 10 }),
     storageUsage(),
     localUploadsUsage(),
+    prisma.notificationLog.findMany({ orderBy: { createdAt: "desc" }, take: 10 }),
     Promise.all([
       prisma.user.count(),
       prisma.order.count(),
@@ -92,9 +94,11 @@ export async function getSystemOverview() {
     health,
     failedPayments,
     failedJobs,
+    failedNotifications,
     recentJobs,
     events,
     securityEvents,
+    notificationLogs,
     storage: { mediaBytes: media.bytes, mediaFiles: media.files, localBytes: local.bytes, localFiles: local.files },
     counts: { users: counts[0], orders: counts[1], products: counts[2], analyticsEvents: counts[3] },
     backup: { lastRunAt: backupSetting?.value ?? null, frequency: backupFrequency?.value ?? "daily" },

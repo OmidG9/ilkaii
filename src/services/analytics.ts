@@ -87,6 +87,10 @@ export interface IngestContext {
 export async function recordAnalyticsEvent(payload: AnalyticsEventPayload, context: IngestContext) {
   try {
     if (!context.serverEvent && isBot(context.userAgent)) return { recorded: false, reason: "bot" };
+    // Revenue events are only accepted from server-side checkout/refund code.
+    if (!context.serverEvent && (payload.name === "purchase" || payload.name === "refund")) {
+      return { recorded: false, reason: "server_only" };
+    }
     const settings = await getAnalyticsSettings();
     if (!settings.enabled) return { recorded: false, reason: "disabled" };
     if (settings.requireConsent && !context.consentGranted) return { recorded: false, reason: "consent" };
@@ -164,7 +168,11 @@ export async function recordAnalyticsEvent(payload: AnalyticsEventPayload, conte
       });
       if (!inserted.count) return false;
 
-      const revenue = payload.name === "purchase" ? Math.max(0, Math.round(Number(payload.metadata?.revenue ?? 0))) : 0;
+      // Purchases add revenue; refunds carry a negative revenue amount so the
+      // daily aggregate and net campaign attribution stay consistent.
+      const revenue = payload.name === "purchase" || payload.name === "refund"
+        ? Math.round(Number(payload.metadata?.revenue ?? 0))
+        : 0;
       const increments = {
         visitors: isNew ? 1 : 0,
         sessions: isNew ? 1 : 0,

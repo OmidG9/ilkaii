@@ -32,5 +32,12 @@ export const POST = route(async (request: NextRequest) => {
     if (granted) analyticsSessionId = sessionId;
   }
 
-  return ok(await createCheckout(input, user.id, idempotencyKey, { analyticsSessionId }), 201);
+  // In development always return to the origin the browser is actually using
+  // (e.g. :3500), even if NEXT_PUBLIC_BASE_URL still says :3000. Production
+  // keeps the configured public URL so reverse proxies and callbacks work.
+  const baseUrl = process.env.NODE_ENV === "production"
+    ? process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin
+    : request.nextUrl.origin;
+
+  return ok(await createCheckout(input, user.id, idempotencyKey, { analyticsSessionId, baseUrl }), 201);
 });

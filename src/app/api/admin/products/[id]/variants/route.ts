@@ -13,7 +13,7 @@ export const POST = route(async (request: NextRequest, context) => {
   const user = await requirePermission("inventory.write");
   const { id } = await (context as Context).params;
   const input = await parseBody(request, variantSchema);
-  const variant = await upsertVariant(id, input);
+  const variant = await upsertVariant(id, input, undefined, user.id);
   await audit({ actorId: user.id, action: "variant.created", entity: "ProductVariant", entityId: variant.id });
   return ok({ id: variant.id }, 201);
 });

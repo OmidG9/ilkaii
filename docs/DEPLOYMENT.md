@@ -117,14 +117,23 @@ duplicate conflicting CSP headers at the proxy.
   `BEHPARDAKHT_USERNAME`, and `BEHPARDAKHT_PASSWORD`. The gateway receives a
   POST form from `/api/payments/mellat/redirect`; callbacks return to
   `/api/payments/callback`.
-- In development, a gateway without credentials falls back to the local mock
-  adapter so the full checkout remains testable. Production never falls back.
-- **COD**: handled without a gateway; the order starts as `PROCESSING` with
-  `paymentStatus=PENDING` and is marked paid when the admin records delivery.
+- In development, a gateway without credentials falls back to the interactive
+  `/payment-sandbox` simulator. It shows a test payment page with success and
+  failure outcomes, then returns to `/checkout/result` on the same origin so the
+  full order flow can be verified locally. Production never falls back.
+- **COD**: no longer offered on the storefront checkout. Historical COD orders
+  remain supported by the admin status workflow.
 - **Resuming**: `/api/payments/resume?order=...` re-opens the existing gateway
   session for a pending order owned by the signed-in customer.
-- **SMS**: `SMS_API_URL` + `SMS_API_TOKEN` (or Admin → Integrations). Without a
-  provider, production OTP login cannot send codes — configure it before launch.
+- **Refunds**: gateway refunds are performed in the provider panel, then the
+  amount, bank reference and operator are recorded in Admin → Orders → Refund.
+  The ledger supports partial refunds and only marks the order/payment REFUNDED
+  when the paid amount is fully covered.
+- **SMS/email**: `SMS_API_URL` + `SMS_API_TOKEN` (or Admin → Integrations) and
+  `EMAIL_API_URL` + `email.api_key`. Transactional order/return/refund messages
+  are logged in `NotificationLog`; failures never break checkout.
+- **SMS OTP**: Without a provider, production OTP login cannot send codes —
+  configure it before launch.
 
 ## 7. Storage
 
@@ -142,9 +151,13 @@ duplicate conflicting CSP headers at the proxy.
 - **Rate limits**: set `REDIS_URL` when running more than one instance; the
   limiter atomically increments hashed keys with a TTL and falls back to the
   in-process limiter for 30 seconds if Redis is temporarily unavailable.
-- **Pending orders**: schedule `POST /api/cron/maintenance` (Bearer
-  `CRON_SECRET`) at least hourly. It cancels unpaid `PENDING_PAYMENT` orders
-  older than 24 hours and restores stock.
+- **Pending orders**: schedule the maintenance job at least hourly. It cancels
+  unpaid `PENDING_PAYMENT` orders older than 24 hours, restores stock, promotes
+  scheduled content and applies analytics retention. Either use
+  `POST /api/cron/maintenance` (Bearer `CRON_SECRET`) or a system cron:
+  ```cron
+  0 * * * * cd /srv/ilkaii && npm run maintenance >> /var/log/ilkaii-maintenance.log 2>&1
+  ```
 - **Sessions/OTP cleanup**: expired `Session` and `OtpChallenge` rows can be
   pruned by a scheduled job (`DELETE ... WHERE expiresAt < NOW()`).
 - **Audit retention**: keep `AuditLog` per your compliance policy; it is

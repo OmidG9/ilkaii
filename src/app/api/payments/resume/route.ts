@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
-import { toToman } from "@/lib/money";
 import { paymentResumeUrl } from "@/services/checkout";
 
 export const runtime = "nodejs";
@@ -54,7 +53,6 @@ export async function GET(request: NextRequest) {
     payment?.provider ?? "",
     payment?.authority ?? null,
     order.id,
-    toToman(order.totalAmount),
   );
   if (!gatewayUrl) return NextResponse.redirect(detailUrl);
 

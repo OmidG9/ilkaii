@@ -91,7 +91,7 @@ export const checkoutSchema = z.object({
   addressId: id().optional(),
   address: addressSchema.optional(),
   shippingMethod: z.enum(["FLAT", "ALOPEYK", "PISHTAZ", "TIPAX", "POSTAL", "COURIER", "PICKUP"]).default("PISHTAZ"),
-  paymentMethod: z.enum(["ONLINE", "COD"]).default("ONLINE"),
+  paymentMethod: z.literal("ONLINE").default("ONLINE"),
   paymentGateway: z.enum(["ZARINPAL", "ZIBAL", "BEHPARDAKHT"]).default("ZARINPAL"),
   couponCode: z.string().trim().min(3).max(32).transform((value) => value.toUpperCase()).optional(),
   expectPayment: z.boolean().default(true),
@@ -144,10 +144,14 @@ export const variantSchema = z.object({
   size: z.string().min(1).max(20),
   color: z.string().max(40).optional(),
   sku: z.string().min(2).max(64),
+  barcode: z.string().max(64).optional(),
+  location: z.string().max(120).optional(),
   price: toman().optional(),
+  costPrice: toman().optional(),
   stock: z.number().int().nonnegative().max(1_000_000),
   lowStockThreshold: z.number().int().nonnegative().default(5),
   isAvailable: z.boolean().default(true),
+  supplierId: id().optional(),
 });
 
 export const categorySchema = z.object({
@@ -200,7 +204,110 @@ export const brandSchema = z.object({
 export const inventoryAdjustmentSchema = z.object({
   variantId: id(),
   quantity: z.number().int().min(-1_000_000).max(1_000_000),
-  reason: z.enum(["RESTOCK", "ADJUSTMENT", "RETURN"]),
+  reason: z.enum(["RESTOCK", "ADJUSTMENT", "RETURN", "DAMAGE"]),
+  note: z.string().max(500).optional(),
+});
+
+export const inventoryBulkSchema = z.object({
+  ids: z.array(id()).min(1, "حداقل یک تنوع انتخاب کنید").max(200),
+  mode: z.enum(["set", "increment"]),
+  quantity: z.number().int().min(-1_000_000).max(1_000_000),
+  reason: z.enum(["RESTOCK", "ADJUSTMENT", "DAMAGE"]),
+  note: z.string().max(500).optional(),
+}).refine((value) => value.mode !== "set" || value.quantity >= 0, {
+  message: "در حالت تنظیم مطلق، موجودی نمی‌تواند منفی باشد",
+  path: ["quantity"],
+});
+
+export const inventoryVariantUpdateSchema = z.object({
+  barcode: z.string().trim().max(64).regex(/^[A-Za-z0-9._-]*$/, "بارکد نامعتبر است").nullable().optional(),
+  location: z.string().trim().max(120).nullable().optional(),
+  costPrice: z.number().int().nonnegative().max(1_000_000_000).nullable().optional(),
+  lowStockThreshold: z.number().int().nonnegative().max(1_000_000).optional(),
+  isAvailable: z.boolean().optional(),
+  supplierId: z.string().regex(/^[a-zA-Z0-9_-]{8,64}$/, "شناسه تأمین‌کننده نامعتبر است").nullable().optional(),
+}).refine((value) => Object.values(value).some((field) => field !== undefined), "تغییری ارسال نشده است");
+
+export const supplierSchema = z.object({
+  name: z.string().trim().min(2).max(160),
+  contactName: z.string().trim().max(120).optional(),
+  phone: z.string().trim().max(20).optional(),
+  email: z.preprocess(
+    (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+    z.string().email("ایمیل نامعتبر است").max(320).optional(),
+  ),
+  address: z.string().max(2000).optional(),
+  notes: z.string().max(4000).optional(),
+  leadTimeDays: z.number().int().min(0).max(365).default(0),
+  isActive: z.boolean().default(true),
+});
+export const supplierUpdateSchema = supplierSchema.partial();
+
+const purchaseOrderItemSchema = z.object({
+  variantId: id(),
+  quantity: z.number().int().positive().max(1_000_000),
+  unitCost: toman(),
+  note: z.string().max(300).optional(),
+});
+
+export const purchaseOrderSchema = z.object({
+  supplierId: id(),
+  expectedAt: z.string().datetime().optional(),
+  shippingCost: toman().default(0),
+  discountAmount: toman().default(0),
+  note: z.string().max(2000).optional(),
+  items: z.array(purchaseOrderItemSchema)
+    .min(1, "حداقل یک قلم کالا اضافه کنید")
+    .max(200)
+    .refine(
+      (items) => new Set(items.map((item) => item.variantId)).size === items.length,
+      "هر تنوع فقط یک بار قابل انتخاب است",
+    ),
+});
+export const purchaseOrderUpdateSchema = purchaseOrderSchema.partial();
+
+export const purchaseOrderReceiveSchema = z.object({
+  items: z.array(z.object({
+    itemId: id(),
+    quantity: z.number().int().min(0).max(1_000_000),
+  }))
+    .min(1)
+    .max(200)
+    .refine(
+      (items) => new Set(items.map((item) => item.itemId)).size === items.length,
+      "هر قلم فقط یک بار قابل ثبت است",
+    ),
+});
+
+export const purchaseOrderStatusSchema = z.object({
+  status: z.enum(["ORDERED", "CANCELLED"]),
+  note: z.string().max(500).optional(),
+});
+
+export const stocktakeCreateSchema = z.object({
+  scope: z.enum(["ALL", "LOW_STOCK", "CATEGORY"]).default("ALL"),
+  categoryId: id().optional(),
+  note: z.string().max(2000).optional(),
+}).refine((value) => value.scope !== "CATEGORY" || Boolean(value.categoryId), {
+  message: "برای انبارگردانی دسته‌بندی، انتخاب دسته الزامی است",
+  path: ["categoryId"],
+});
+
+export const stocktakeCountsSchema = z.object({
+  counts: z.array(z.object({
+    itemId: id(),
+    countedQuantity: z.number().int().min(0).max(1_000_000),
+  }))
+    .min(1, "حداقل یک شمارش ثبت کنید")
+    .max(500)
+    .refine(
+      (counts) => new Set(counts.map((count) => count.itemId)).size === counts.length,
+      "هر قلم فقط یک بار قابل ثبت است",
+    ),
+});
+
+export const stocktakeStatusSchema = z.object({
+  status: z.enum(["IN_PROGRESS", "CANCELLED"]),
   note: z.string().max(500).optional(),
 });
 
@@ -214,6 +321,14 @@ export const reviewModerationSchema = z.object({ isApproved: z.boolean() });
 export const returnProcessSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED", "COMPLETED"]),
   note: z.string().max(2000).optional(),
+});
+
+export const refundSchema = z.object({
+  amount: z.number().int().positive().max(1_000_000_000),
+  reason: z.string().trim().max(2000).optional(),
+  reference: z.string().trim().max(191).optional(),
+  status: z.enum(["PENDING", "COMPLETED", "FAILED"]).default("COMPLETED"),
+  paymentId: id().optional(),
 });
 
 export const productImageSchema = z.object({

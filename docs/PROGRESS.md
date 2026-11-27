@@ -61,9 +61,12 @@ Files: `src/lib/auth/*`, `src/app/api/auth/*`, `scripts/bootstrap-admin.ts`.
 
 ## Phase 8 — Admin dashboard
 
-- [x] Overview (KPIs, 14-day sales chart, low stock, recent orders).
+- [x] Overview (KPIs, 14-day sales chart, low stock, recent orders, inventory value).
 - [x] Products (create/edit, variants, images upload/URL, inventory history).
 - [x] Categories, brands, coupons, inventory adjustments.
+- [x] Warehouse: suppliers, purchase orders/receiving, weighted cost, stocktakes,
+  barcode/bin locations, valuation, reorder suggestions and bulk adjustments
+  (`docs/WAREHOUSE.md`).
 - [x] Orders list + detail with validated status transitions and tracking numbers.
 - [x] Customers (role/active), returns processing, review moderation.
 - [x] Site settings editor (brand, theme tokens, contact, shipping, features, content).

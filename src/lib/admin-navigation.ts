@@ -37,8 +37,17 @@ export const ADMIN_NAV: AdminNavSection[] = [
       { href: "/admin/products", label: "محصولات", permission: "products.view", icon: "Package" },
       { href: "/admin/categories", label: "دسته‌بندی‌ها", permission: "products.view", icon: "FolderTree" },
       { href: "/admin/brands", label: "برندها", permission: "products.view", icon: "Tag" },
-      { href: "/admin/inventory", label: "موجودی", permission: "inventory.manage", icon: "Boxes" },
       { href: "/admin/reviews", label: "نظرات", permission: "products.view", icon: "MessageSquare" },
+    ],
+  },
+  {
+    title: "انبار و موجودی",
+    links: [
+      { href: "/admin/inventory", label: "مدیریت موجودی", permission: "inventory.manage", icon: "Boxes", exact: true },
+      { href: "/admin/inventory/suppliers", label: "تأمین‌کنندگان", permission: "inventory.manage", icon: "Truck" },
+      { href: "/admin/inventory/purchase-orders", label: "سفارش‌های خرید", permission: "inventory.manage", icon: "ClipboardList" },
+      { href: "/admin/inventory/stocktakes", label: "انبارگردانی", permission: "inventory.manage", icon: "ClipboardCheck" },
+      { href: "/admin/inventory/movements", label: "تاریخچه موجودی", permission: "inventory.manage", icon: "History" },
     ],
   },
   {

@@ -88,10 +88,10 @@ export function shippingCost(
   method: ShippingMethodKey,
   subtotal: Money,
 ): Money {
+  if (method === "ALOPEYK") return 0;
   if (subtotal >= settings.freeThreshold) return 0;
   switch (method) {
     case "FLAT": return settings.flat;
-    case "ALOPEYK": return settings.alopeyk;
     case "PISHTAZ": return settings.pishtaz;
     case "TIPAX": return settings.tipax;
     case "POSTAL": return settings.postal ?? settings.pishtaz;

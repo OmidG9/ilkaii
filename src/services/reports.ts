@@ -57,15 +57,19 @@ export async function buildReport(type: ReportType, range: DateRange, group: Rep
       const rows = await prisma.$queryRaw<Array<{ period: string; orders: unknown; paidOrders: unknown; revenue: unknown; discounts: unknown; shipping: unknown }>>(Prisma.sql`
         SELECT ${GROUP_EXPR[group]} AS period,
                COUNT(*) AS orders,
-               SUM(CASE WHEN o.paymentStatus='PAID' THEN 1 ELSE 0 END) AS paidOrders,
-               CAST(COALESCE(SUM(CASE WHEN o.paymentStatus='PAID' THEN o.totalAmount ELSE 0 END),0) AS SIGNED) AS revenue,
-               CAST(COALESCE(SUM(CASE WHEN o.paymentStatus='PAID' THEN o.discountAmount ELSE 0 END),0) AS SIGNED) AS discounts,
-               CAST(COALESCE(SUM(CASE WHEN o.paymentStatus='PAID' THEN o.shippingCost ELSE 0 END),0) AS SIGNED) AS shipping
+               SUM(CASE WHEN o.paymentStatus IN ('PAID','REFUNDED') THEN 1 ELSE 0 END) AS paidOrders,
+               CAST(COALESCE(SUM(CASE WHEN o.paymentStatus IN ('PAID','REFUNDED') THEN o.totalAmount ELSE 0 END),0) AS SIGNED) AS revenue,
+               CAST(COALESCE(SUM(CASE WHEN o.paymentStatus IN ('PAID','REFUNDED') THEN o.discountAmount ELSE 0 END),0) AS SIGNED) AS discounts,
+               CAST(COALESCE(SUM(CASE WHEN o.paymentStatus IN ('PAID','REFUNDED') THEN o.shippingCost ELSE 0 END),0) AS SIGNED) AS shipping
         FROM \`Order\` o WHERE o.createdAt BETWEEN ${from} AND ${to}
         GROUP BY period ORDER BY period ASC`);
-      const previous = await prisma.order.aggregate({ where: { paymentStatus: "PAID", createdAt: { gte: previousFrom, lte: previousTo } }, _sum: { totalAmount: true }, _count: { _all: true } });
-      const paid = await prisma.order.aggregate({ where: { paymentStatus: "PAID", createdAt: { gte: from, lte: to } }, _sum: { totalAmount: true, discountAmount: true, shippingCost: true }, _count: { _all: true } });
-      const refunds = await prisma.order.aggregate({ where: { paymentStatus: "REFUNDED", updatedAt: { gte: from, lte: to } }, _sum: { totalAmount: true }, _count: { _all: true } });
+      const previous = await prisma.order.aggregate({ where: { paymentStatus: { in: ["PAID", "REFUNDED"] }, createdAt: { gte: previousFrom, lte: previousTo } }, _sum: { totalAmount: true }, _count: { _all: true } });
+      const paid = await prisma.order.aggregate({ where: { paymentStatus: { in: ["PAID", "REFUNDED"] }, createdAt: { gte: from, lte: to } }, _sum: { totalAmount: true, discountAmount: true, shippingCost: true }, _count: { _all: true } });
+      const [refundLedger, legacyRefunds] = await Promise.all([
+        prisma.refund.aggregate({ where: { status: "COMPLETED", createdAt: { gte: from, lte: to } }, _sum: { amount: true }, _count: { _all: true } }),
+        prisma.order.aggregate({ where: { paymentStatus: "REFUNDED", updatedAt: { gte: from, lte: to }, refunds: { none: { status: "COMPLETED" } } }, _sum: { totalAmount: true }, _count: { _all: true } }),
+      ]);
+      const refunded = toToman(refundLedger._sum.amount ?? 0) + toToman(legacyRefunds._sum.totalAmount ?? 0);
       const revenue = toToman(paid._sum.totalAmount ?? 0);
       const resultRows = rows.map((row) => ({
         period: row.period,
@@ -89,8 +93,8 @@ export async function buildReport(type: ReportType, range: DateRange, group: Rep
         rows: resultRows,
         summary: [
           { label: "فروش ناخالص", value: revenue, type: "toman" },
-          { label: "بازپرداخت", value: toToman(refunds._sum.totalAmount ?? 0), type: "toman" },
-          { label: "فروش خالص", value: Math.max(0, revenue - toToman(refunds._sum.totalAmount ?? 0)), type: "toman" },
+          { label: "بازپرداخت", value: refunded, type: "toman" },
+          { label: "فروش خالص", value: Math.max(0, revenue - refunded), type: "toman" },
           { label: "سفارش پرداخت‌شده", value: num(paid._count._all), type: "number" },
           { label: "میانگین سفارش", value: num(paid._count._all) ? Math.round(revenue / num(paid._count._all)) : 0, type: "toman" },
           { label: "فروش دوره قبل", value: toToman(previous._sum.totalAmount ?? 0), type: "toman" },
@@ -146,28 +150,34 @@ export async function buildReport(type: ReportType, range: DateRange, group: Rep
       };
     }
     case "inventory": {
-      const rows = await prisma.$queryRaw<Array<{ product: string; sku: string; variant: string; stock: unknown; threshold: unknown; price: unknown; active: unknown }>>(Prisma.sql`
+      const rows = await prisma.$queryRaw<Array<{ product: string; sku: string; variant: string; stock: unknown; threshold: unknown; price: unknown; cost: unknown; active: unknown }>>(Prisma.sql`
         SELECT p.name AS product, v.sku, CONCAT(v.size, COALESCE(CONCAT(' / ', v.color), '')) AS variant,
-               v.stock, v.lowStockThreshold AS threshold, CAST(COALESCE(v.price, p.basePrice) AS SIGNED) AS price, v.isAvailable AS active
+               v.stock, v.lowStockThreshold AS threshold,
+               CAST(COALESCE(v.price, p.salePrice, p.basePrice) AS SIGNED) AS price,
+               CAST(COALESCE(v.costPrice, 0) AS SIGNED) AS cost,
+               v.isAvailable AS active
         FROM ProductVariant v JOIN Product p ON p.id=v.productId
         WHERE p.isDeleted=0 ORDER BY v.stock ASC LIMIT 1000`);
       const resultRows = rows.map((row) => ({
         product: row.product, sku: row.sku, variant: row.variant, stock: num(row.stock),
-        threshold: num(row.threshold), price: num(row.price), active: Boolean(row.active),
+        threshold: num(row.threshold), price: num(row.price), cost: num(row.cost), active: Boolean(row.active),
         value: num(row.stock) * num(row.price),
+        costValue: num(row.stock) * num(row.cost),
       }));
       return {
-        title: "گزارش موجودی",
-        description: "موجودی فعلی همه تنوع‌ها؛ ارزش موجودی با قیمت تنوع یا قیمت پایه محصول محاسبه می‌شود.",
+        title: "گزارش موجودی و ارزش انبار",
+        description: "موجودی فعلی همه تنوع‌ها؛ ارزش فروش با قیمت مؤثر و ارزش خرید با بهای خرید ثبت‌شده محاسبه می‌شود.",
         columns: [
           { key: "product", label: "محصول" }, { key: "sku", label: "SKU" }, { key: "variant", label: "تنوع" },
           { key: "stock", label: "موجودی", type: "number" }, { key: "threshold", label: "آستانه", type: "number" },
-          { key: "price", label: "قیمت", type: "toman" }, { key: "value", label: "ارزش", type: "toman" },
+          { key: "cost", label: "بهای خرید", type: "toman" }, { key: "costValue", label: "ارزش خرید", type: "toman" },
+          { key: "price", label: "قیمت فروش", type: "toman" }, { key: "value", label: "ارزش فروش", type: "toman" },
         ],
         rows: resultRows,
         summary: [
           { label: "تنوع‌ها", value: resultRows.length, type: "number" },
-          { label: "ارزش موجودی", value: resultRows.reduce((sum, row) => sum + row.value, 0), type: "toman" },
+          { label: "ارزش خرید", value: resultRows.reduce((sum, row) => sum + row.costValue, 0), type: "toman" },
+          { label: "ارزش فروش", value: resultRows.reduce((sum, row) => sum + row.value, 0), type: "toman" },
           { label: "زیر آستانه", value: resultRows.filter((row) => row.stock <= row.threshold).length, type: "number" },
         ],
       };
@@ -222,17 +232,41 @@ export async function buildReport(type: ReportType, range: DateRange, group: Rep
       };
     }
     case "refunds": {
-      const rows = await prisma.$queryRaw<Array<{ orderNumber: string; createdAt: Date; amount: unknown; status: string }>>(Prisma.sql`
-        SELECT orderNumber, updatedAt AS createdAt, CAST(totalAmount AS SIGNED) AS amount, status
-        FROM \`Order\` WHERE paymentStatus='REFUNDED' AND updatedAt BETWEEN ${from} AND ${to}
-        ORDER BY updatedAt DESC`);
-      const resultRows = rows.map((row) => ({ orderNumber: row.orderNumber, createdAt: row.createdAt.toISOString(), amount: num(row.amount), status: row.status }));
+      const [ledger, legacyRefunds] = await Promise.all([
+        prisma.refund.findMany({
+          where: { status: "COMPLETED", createdAt: { gte: from, lte: to } },
+          orderBy: { createdAt: "desc" },
+          include: { order: { select: { orderNumber: true } } },
+        }),
+        prisma.order.findMany({
+          where: { paymentStatus: "REFUNDED", updatedAt: { gte: from, lte: to }, refunds: { none: { status: "COMPLETED" } } },
+          orderBy: { updatedAt: "desc" },
+          select: { orderNumber: true, updatedAt: true, totalAmount: true },
+        }),
+      ]);
+      const resultRows = [
+        ...ledger.map((refund) => ({
+          orderNumber: refund.order.orderNumber,
+          createdAt: refund.createdAt.toISOString(),
+          amount: toToman(refund.amount),
+          status: refund.status,
+          reference: refund.reference ?? "—",
+        })),
+        ...legacyRefunds.map((order) => ({
+          orderNumber: order.orderNumber,
+          createdAt: order.updatedAt.toISOString(),
+          amount: toToman(order.totalAmount),
+          status: "COMPLETED",
+          reference: "—",
+        })),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return {
         title: "گزارش بازپرداخت",
-        description: "سفارش‌هایی که در بازه به وضعیت بازپرداخت‌شده تغییر کرده‌اند.",
+        description: "همهٔ بازپرداخت‌های تکمیل‌شده، شامل بازپرداخت‌های جزئی و مرجع بانکی.",
         columns: [
           { key: "orderNumber", label: "سفارش" }, { key: "createdAt", label: "تاریخ", type: "date" },
           { key: "amount", label: "مبلغ", type: "toman" }, { key: "status", label: "وضعیت" },
+          { key: "reference", label: "مرجع" },
         ],
         rows: resultRows,
         summary: [{ label: "بازپرداخت‌ها", value: resultRows.reduce((sum, row) => sum + row.amount, 0), type: "toman" }],

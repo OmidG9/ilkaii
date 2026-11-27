@@ -8,8 +8,11 @@ import type {
   NotificationStatus,
   OrderStatus,
   PaymentStatus,
+  PurchaseOrderStatus,
+  RefundStatus,
   ReturnStatus,
   ShippingMethod,
+  StocktakeStatus,
   SubscriberStatus,
 } from "@prisma/client";
 import { BUILT_IN_ROLES, roleLabel } from "@/lib/permissions";
@@ -51,6 +54,12 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
   REFUNDED: "بازپرداخت شده",
 };
 
+export const refundStatusLabels: Record<RefundStatus, string> = {
+  PENDING: "در انتظار",
+  COMPLETED: "تکمیل شده",
+  FAILED: "ناموفق",
+};
+
 export const returnStatusLabels: Record<ReturnStatus, string> = {
   PENDING: "در انتظار بررسی",
   APPROVED: "تأیید شده",
@@ -64,6 +73,24 @@ export const inventoryReasonLabels: Record<InventoryReason, string> = {
   ADJUSTMENT: "تنظیم دستی",
   RETURN: "بازگشت",
   CANCELLATION: "لغو سفارش",
+  PURCHASE: "خرید/ورود کالا",
+  STOCKTAKE: "انبارگردانی",
+  DAMAGE: "ضایعات/آسیب",
+};
+
+export const purchaseOrderStatusLabels: Record<PurchaseOrderStatus, string> = {
+  DRAFT: "پیش‌نویس",
+  ORDERED: "ثبت شده / در انتظار ورود",
+  PARTIAL: "ورود بخشی",
+  RECEIVED: "کاملاً دریافت شده",
+  CANCELLED: "لغو شده",
+};
+
+export const stocktakeStatusLabels: Record<StocktakeStatus, string> = {
+  DRAFT: "پیش‌نویس",
+  IN_PROGRESS: "در حال شمارش",
+  COMPLETED: "تکمیل شده",
+  CANCELLED: "لغو شده",
 };
 
 export const roleLabels: Record<string, string> = Object.fromEntries(

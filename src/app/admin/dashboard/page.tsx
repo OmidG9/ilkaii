@@ -4,6 +4,7 @@ import { requirePagePermission } from "@/lib/auth/session";
 import { resolveDateRange, RANGE_LABELS } from "@/lib/date-range";
 import { getDashboardData } from "@/services/dashboard";
 import { lowStockVariants } from "@/services/catalog";
+import { getInventoryValueSummary } from "@/services/warehouse";
 import { cached } from "@/lib/cache";
 import { formatToman } from "@/lib/money";
 import { formatJalali, formatNumber } from "@/lib/persian";
@@ -11,7 +12,7 @@ import { orderStatusLabels } from "@/lib/labels";
 import { AdminChart, AdminDataTable, AdminPageHeader, AdminStatCard } from "@/components/admin/admin-widgets";
 import { AdminDateRangePicker } from "@/components/admin/admin-client";
 import type { RawSearchParams } from "@/lib/search-params";
-import { ShoppingBag, CircleDollarSign, Users, TrendingUp, PackageMinus, Activity } from "lucide-react";
+import { ShoppingBag, CircleDollarSign, Users, TrendingUp, PackageMinus, Activity, Warehouse } from "lucide-react";
 
 export const metadata: Metadata = { title: "داشبورد مدیریت" };
 export const dynamic = "force-dynamic";
@@ -24,9 +25,10 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
     from: typeof params.from === "string" ? params.from : undefined,
     to: typeof params.to === "string" ? params.to : undefined,
   });
-  const [data, lowStock] = await Promise.all([
+  const [data, lowStock, inventoryValue] = await Promise.all([
     cached(`dashboard:${range.from.toISOString()}:${range.to.toISOString()}`, 30_000, () => getDashboardData(range)),
     lowStockVariants(),
+    getInventoryValueSummary(),
   ]);
   const delta = data.charts.previousRevenue > 0
     ? Math.round(((data.revenue.gross - data.charts.previousRevenue) / data.charts.previousRevenue) * 100)
@@ -55,7 +57,8 @@ export default async function AdminDashboardPage({ searchParams }: { searchParam
         <AdminStatCard label="مشتریان خریدار" value={formatNumber(data.customers.buyers)} hint={`بازگشتی: ${formatNumber(data.customers.returningBuyers)}`} href="/admin/customers" />
         <AdminStatCard label="نرخ تبدیل" value={data.revenue.conversionRate === null ? "—" : `${formatNumber(Math.round(data.revenue.conversionRate * 10) / 10)}٪`} hint={data.revenue.conversionRate === null ? "داده نشست کافی نیست" : `سفارش ÷ ${formatNumber(data.revenue.sessionCount)} نشست`} definition="نرخ تبدیل = سفارش پرداخت‌شده ÷ نشست‌های آغازشده در بازه." />
         <AdminStatCard label="نشست فعال" value={formatNumber(data.revenue.activeSessions)} hint="۳۰ دقیقه اخیر" definition="نشست‌هایی که آخرین رویداد آن‌ها در ۳۰ دقیقه گذشته ثبت شده است." />
-        <AdminStatCard label="موجودی کم" value={formatNumber(data.lowStockCount)} hint="تنوع‌های زیر آستانه" tone={data.lowStockCount ? "danger" : "success"} icon={<PackageMinus className="h-5 w-5" />} href="/admin/inventory" />
+        <AdminStatCard label="موجودی کم" value={formatNumber(data.lowStockCount)} hint="تنوع‌های زیر آستانه" tone={data.lowStockCount ? "danger" : "success"} icon={<PackageMinus className="h-5 w-5" />} href="/admin/inventory?stock=low" />
+        <AdminStatCard label="ارزش موجودی انبار" value={formatToman(inventoryValue.costValue)} hint={`${formatNumber(inventoryValue.units)} واحد — ارزش فروش ${formatToman(inventoryValue.retailValue)}`} icon={<Warehouse className="h-5 w-5" />} href="/admin/inventory" definition="مجموع موجودی × بهای خرید ثبت‌شده؛ برای ارزش‌گذاری دقیق، بهای خرید تنوع‌ها را تکمیل کنید." />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">

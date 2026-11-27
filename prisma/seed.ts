@@ -121,12 +121,41 @@ async function main() {
     });
   }
 
+  // Warehouse demo data: default supplier, cost/bin/barcode fields and an
+  // opening ledger entry for stock that predates the inventory ledger. Every
+  // statement is idempotent and never overwrites operator-entered values.
+  const supplier = await prisma.supplier.upsert({
+    where: { name: "تأمین‌کننده نمونه" },
+    update: {},
+    create: {
+      name: "تأمین‌کننده نمونه",
+      contactName: "واحد تأمین",
+      phone: "02100000000",
+      leadTimeDays: 7,
+      isActive: true,
+    },
+  });
+  await prisma.$executeRaw`
+    UPDATE ProductVariant v JOIN Product p ON p.id = v.productId
+    SET v.costPrice = COALESCE(v.costPrice, ROUND(p.basePrice * 0.55, 2)),
+        v.barcode = COALESCE(v.barcode, CONCAT('ILK-', v.sku)),
+        v.location = COALESCE(v.location, CONCAT('A-', LPAD(MOD(CRC32(v.sku), 40) + 1, 2, '0'))),
+        v.supplierId = COALESCE(v.supplierId, ${supplier.id})
+  `;
+  await prisma.$executeRaw`
+    INSERT INTO InventoryMovement (id, variantId, quantity, balanceAfter, reason, note)
+    SELECT CONCAT('seed-', v.id), v.id, v.stock, v.stock, 'RESTOCK', 'موجودی اولیه نمونه'
+    FROM ProductVariant v
+    WHERE v.stock > 0
+      AND NOT EXISTS (SELECT 1 FROM InventoryMovement m WHERE m.variantId = v.id)
+  `;
+
   await prisma.siteSetting.upsert({
     where: { key: "site.name" },
     update: {},
     create: { key: "site.name", value: "ilkaii" },
   });
-  console.log("Seed complete: roles, categories, demo products and settings created.");
+  console.log("Seed complete: roles, categories, demo products, warehouse demo data and settings created.");
 }
 
 main()

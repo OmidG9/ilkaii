@@ -21,14 +21,20 @@ phone/postal validation.
   (global, store, product, category, collection, journal and admin)
 - Customer account: profile, addresses, orders, wishlist, reviews, returns
 - Admin dashboard: overview, products/variants/images, categories, brands,
-  inventory ledger, orders + status transitions, customers, coupons, returns,
-  review moderation, site settings, audit log
+  orders + status transitions, customers, coupons, returns, review moderation,
+  site settings, audit log
+- Warehouse module: variant-level ledger with running balance, cost valuation,
+  barcode/bin locations, suppliers, purchase orders with partial receiving and
+  weighted-average cost, stocktakes, reorder suggestions and CSV export
+  (see `docs/WAREHOUSE.md`)
 - Control Center: CMS (homepage builder/pages/banners/menus/media/blog), CRM
   segmentation, first-party analytics + funnel/session explorer, marketing
   campaigns/subscribers, reports/CSV, encrypted integrations, system health and
   granular RBAC with custom roles
 - Server-authoritative checkout, idempotency keys, stock reservation and
   compensation on payment failure
+- Partial/full refund ledger with bank reference, plus transactional order and
+  return SMS/email notifications (provider-backed, logged)
 - Selectable shipping rates (flat, AloPeyk for Tehran, Pishtaz, Tipax) and
   payment gateways (Zarinpal, Zibal, Behpardakht Mellat), with credentials
   managed through env or encrypted Admin → Integrations secrets
@@ -70,6 +76,8 @@ ADMIN_PHONE=09123456789 BOOTSTRAP_CONFIRM=yes npm run admin:grant
 | `npm run db:migrate:prod` | `prisma migrate deploy` |
 | `npm run db:seed` | Development seed (idempotent) |
 | `npm run admin:grant` | Grant an admin role (explicit confirmation) |
+| `npm run maintenance` | Cron job: stale pending orders, scheduled content, retention |
+| `npm run verify` | Type-check + lint + unit/contract tests |
 
 ## Project structure
 
@@ -90,6 +98,8 @@ docs                Authoritative project documentation
 - `docs/PROGRESS.md` — phase-by-phase status and verification log
 - `docs/ADMIN_DASHBOARD_PLAN.md` — Control Center architecture, routes and metrics
 - `docs/ANALYTICS_ARCHITECTURE.md` — event model, privacy, funnels and formulas
+- `docs/WAREHOUSE.md` — inventory ledger, suppliers, purchase orders, receiving,
+  stocktakes, valuation and reorder suggestions
 - `docs/ADMIN_SECURITY.md` — RBAC, secrets, audit and admin controls
 - `docs/ADMIN_PROGRESS.md` — Control Center checklist and remaining work
 - `docs/DEPLOYMENT.md` — production setup, env vars, operations

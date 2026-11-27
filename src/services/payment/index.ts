@@ -40,11 +40,11 @@ export const mockProvider: PaymentProvider = {
   async available() {
     return !isProduction();
   },
-  async initiate({ orderId, amountToman }) {
+  async initiate({ orderId }) {
     if (isProduction()) throw Errors.unavailable("پرداخت آزمایشی در محیط تولید غیرفعال است");
     return {
       authority: `MOCK-${orderId.slice(0, 8)}-${Date.now().toString(36)}`,
-      redirectUrl: `/api/payments/mock?order=${encodeURIComponent(orderId)}&amount=${amountToman}`,
+      redirectUrl: `/payment-sandbox?order=${encodeURIComponent(orderId)}`,
       message: "پرداخت آزمایشی (فقط محیط توسعه)",
     };
   },

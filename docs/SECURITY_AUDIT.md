@@ -161,9 +161,11 @@ Mitigations until the majors land:
 
 ## 9. Known limitations / operator actions
 
-1. **Gateway refunds are not automated.** Cancelling/refunding a paid order
-   updates the local ledger but does not call the gateway's refund API. A
-   reconciliation/refund process is required before launch.
+1. **Gateway refund calls are not automated.** The app now keeps a partial/full
+   refund ledger (amount, bank reference, operator) and updates order/payment
+   status when the paid amount is covered. The actual bank/gateway refund must be
+   performed in the provider panel first; gateway-specific refund APIs are not
+   called.
 2. Configure a production SMS provider and payment merchant ID; verify callbacks
    with the real gateway (Zarinpal, Zibal or Behpardakht sandbox).
 3. Set `REDIS_URL` for multi-instance rate limiting.

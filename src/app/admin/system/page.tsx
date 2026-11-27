@@ -5,9 +5,15 @@ import { AdminDataTable, AdminPageHeader, AdminStatCard } from "@/components/adm
 import { MaintenanceButton } from "@/components/admin/maintenance-button";
 import { Alert } from "@/components/ui/display";
 import { formatJalali, formatNumber, formatSeconds } from "@/lib/persian";
+import { notificationChannelLabels, notificationStatusLabels } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "سلامت سیستم" };
 export const dynamic = "force-dynamic";
+
+const maskRecipient = (value: string) =>
+  value.includes("@")
+    ? value.replace(/^(..).*@/, "$1…@")
+    : value.length > 6 ? `${value.slice(0, 4)}…${value.slice(-2)}` : "…";
 
 const levelTone: Record<string, string> = {
   INFO: "bg-line text-ink/55",
@@ -33,6 +39,7 @@ export default async function AdminSystemPage() {
         <AdminStatCard label="پایگاه داده" value={data.health.database.connected ? `${formatNumber(data.health.database.latencyMs ?? 0)} ms` : "قطع"} hint="تأخیر SELECT 1" tone={data.health.database.connected ? "success" : "danger"} />
         <AdminStatCard label="پرداخت‌های ناموفق ۲۴ ساعت" value={formatNumber(data.failedPayments)} tone={data.failedPayments ? "danger" : "default"} />
         <AdminStatCard label="کارهای ناموفق" value={formatNumber(data.failedJobs)} tone={data.failedJobs ? "danger" : "default"} />
+        <AdminStatCard label="پیام‌های ناموفق ۲۴ ساعت" value={formatNumber(data.failedNotifications)} tone={data.failedNotifications ? "danger" : "default"} />
         <AdminStatCard label="حافظه فرایند" value={`${formatNumber(data.health.app.memoryMb)} MB`} hint={`${data.host.cpus} CPU — کل ${formatNumber(data.host.totalMemoryMb)} MB`} />
         <AdminStatCard label="ذخیره‌سازی رسانه" value={`${formatNumber(Math.round(data.storage.mediaBytes / 1024))} KB`} hint={`${formatNumber(data.storage.mediaFiles)} فایل`} />
         <AdminStatCard label="آخرین پشتیبان‌گیری" value={data.backup.lastRunAt ? formatJalali(data.backup.lastRunAt, true) : "ثبت نشده"} hint={`دوره: ${data.backup.frequency}`} />
@@ -72,6 +79,24 @@ export default async function AdminSystemPage() {
           />
         </section>
       </div>
+
+      <section>
+        <h2 className="mb-3 text-sm font-semibold">آخرین پیام‌های تراکنشی</h2>
+        <AdminDataTable
+          rows={data.notificationLogs}
+          rowKey={(log) => log.id}
+          emptyText="پیامی ارسال نشده است."
+          dense
+          columns={[
+            { key: "createdAt", header: "زمان", render: (log) => <span className="text-[10px]">{formatJalali(log.createdAt, true)}</span> },
+            { key: "channel", header: "کانال", render: (log) => <span className="text-[10px]">{notificationChannelLabels[log.channel]}</span> },
+            { key: "template", header: "قالب", ltr: true, render: (log) => <span className="text-[10px]">{log.template ?? "—"}</span> },
+            { key: "recipient", header: "گیرنده", ltr: true, render: (log) => <span dir="ltr" className="text-[10px]">{maskRecipient(log.recipient)}</span> },
+            { key: "status", header: "وضعیت", render: (log) => <span className={`text-[10px] ${log.status === "FAILED" ? "text-red-600" : log.status === "SENT" ? "text-emerald-700" : "text-ink/55"}`}>{notificationStatusLabels[log.status]}</span> },
+            { key: "provider", header: "سرویس", ltr: true, render: (log) => <span className="text-[9px] text-ink/45">{log.provider}</span> },
+          ]}
+        />
+      </section>
 
       <section>
         <h2 className="mb-3 text-sm font-semibold">رویدادهای امنیتی ۲۴ ساعت</h2>

@@ -39,9 +39,7 @@ const groups: Group[] = [
     { key: "contact.address", label: "آدرس", type: "text" },
   ] },
   { title: "هزینه ارسال (تومان)", fields: [
-    { key: "shipping.flat", label: "نرخ ثابت", type: "number" },
-    { key: "shipping.alopeyk", label: "الو پیک (تهران)", type: "number" },
-    { key: "shipping.pishtaz", label: "پست پیشتاز", type: "number" },
+    { key: "shipping.flat", label: "نرخ ثابت", type: "number" },    { key: "shipping.pishtaz", label: "پست پیشتاز", type: "number" },
     { key: "shipping.tipax", label: "تیپاکس", type: "number" },
     { key: "shipping.freeThreshold", label: "آستانه ارسال رایگان", type: "number" },
   ] },

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { toToman } from "@/lib/money";
+import { purchaseOrderStatusLabels } from "@/lib/labels";
 
 export interface AdminSearchGroup {
   title: string;
@@ -14,8 +15,9 @@ export async function adminGlobalSearch(query: string, permissions: readonly str
   const canOrders = permissions.includes("orders.view") || permissions.includes("order.read");
   const canCustomers = permissions.includes("customers.view") || permissions.includes("customer.read");
   const canCms = permissions.includes("cms.manage");
+  const canInventory = permissions.includes("inventory.manage") || permissions.includes("inventory.write");
 
-  const [products, orders, customers, pages, posts] = await Promise.all([
+  const [products, orders, customers, pages, posts, variants, suppliers, purchaseOrders] = await Promise.all([
     canProducts
       ? prisma.product.findMany({
           where: { isDeleted: false, OR: [{ name: { contains: q } }, { sku: { contains: q } }, { slug: { contains: q } }] },
@@ -46,6 +48,40 @@ export async function adminGlobalSearch(query: string, permissions: readonly str
     canCms
       ? prisma.blogPost.findMany({ where: { OR: [{ title: { contains: q } }, { slug: { contains: q } }] }, take: 5, select: { id: true, title: true, slug: true, status: true } })
       : [],
+    canInventory
+      ? prisma.productVariant.findMany({
+          where: {
+            OR: [
+              { sku: { contains: q } },
+              { barcode: { contains: q } },
+              { location: { contains: q } },
+              { product: { name: { contains: q } } },
+            ],
+          },
+          take: 6,
+          orderBy: { updatedAt: "desc" },
+          select: {
+            id: true, sku: true, barcode: true, location: true, size: true, color: true, stock: true,
+            product: { select: { id: true, name: true } },
+          },
+        })
+      : [],
+    canInventory
+      ? prisma.supplier.findMany({
+          where: { OR: [{ name: { contains: q } }, { contactName: { contains: q } }, { phone: { contains: q } }] },
+          take: 5,
+          orderBy: { name: "asc" },
+          select: { id: true, name: true, contactName: true, phone: true, isActive: true },
+        })
+      : [],
+    canInventory
+      ? prisma.purchaseOrder.findMany({
+          where: { OR: [{ number: { contains: q } }, { supplier: { name: { contains: q } } }] },
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          select: { id: true, number: true, status: true, totalAmount: true, supplier: { select: { name: true } } },
+        })
+      : [],
   ]);
 
   const groups: AdminSearchGroup[] = [];
@@ -73,6 +109,33 @@ export async function adminGlobalSearch(query: string, permissions: readonly str
   if (posts.length) groups.push({
     title: "وبلاگ", href: "/admin/cms/blog",
     items: posts.map((post) => ({ id: post.id, title: post.title, subtitle: `/${post.slug}`, href: `/admin/cms/blog` })),
+  });
+  if (variants.length) groups.push({
+    title: "موجودی و تنوع‌ها", href: "/admin/inventory",
+    items: variants.map((variant) => ({
+      id: variant.id,
+      title: `${variant.product.name} — ${variant.size}${variant.color ? ` / ${variant.color}` : ""}`,
+      subtitle: `${variant.sku}${variant.barcode ? ` — بارکد ${variant.barcode}` : ""}${variant.location ? ` — قفسه ${variant.location}` : ""} — موجودی ${variant.stock}`,
+      href: `/admin/inventory?q=${encodeURIComponent(variant.sku)}`,
+    })),
+  });
+  if (suppliers.length) groups.push({
+    title: "تأمین‌کنندگان", href: "/admin/inventory/suppliers",
+    items: suppliers.map((supplier) => ({
+      id: supplier.id,
+      title: supplier.name,
+      subtitle: [supplier.contactName, supplier.phone, supplier.isActive ? "فعال" : "غیرفعال"].filter(Boolean).join(" — "),
+      href: "/admin/inventory/suppliers",
+    })),
+  });
+  if (purchaseOrders.length) groups.push({
+    title: "سفارش‌های خرید", href: "/admin/inventory/purchase-orders",
+    items: purchaseOrders.map((order) => ({
+      id: order.id,
+      title: order.number,
+      subtitle: `${order.supplier.name} — ${toToman(order.totalAmount)} تومان — ${purchaseOrderStatusLabels[order.status]}`,
+      href: `/admin/inventory/purchase-orders/${order.id}`,
+    })),
   });
   return groups;
 }

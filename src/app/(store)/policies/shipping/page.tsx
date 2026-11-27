@@ -13,9 +13,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ShippingPolicyPage() {
   const site = await getSiteConfig();
-  const methods = [
+  const methods: Array<{ label: string; value: number; valueText?: string; note: string }> = [
     { label: "نرخ ثابت", value: site.shipping.flat, note: `نرخ ثابت ${formatToman(site.shipping.flat)}، سراسر کشور` },
-    { label: "الو پیک", value: site.shipping.alopeyk, note: "فقط شهر تهران، تحویل سریع" },
+    { label: "الو پیک", value: site.shipping.alopeyk, valueText: "نرخ روز", note: "فقط شهر تهران؛ کرایه هنگام تحویل بر عهدهٔ مشتری است" },
     { label: "پست پیشتاز", value: site.shipping.pishtaz, note: "۲ تا ۴ روز کاری، سراسر کشور" },
     { label: "تیپاکس", value: site.shipping.tipax, note: "ارسال ایمن و قابل پیگیری" },
   ];
@@ -41,7 +41,7 @@ export default async function ShippingPolicyPage() {
           {methods.map((method) => (
             <div key={method.label} className="rounded-2xl border border-line bg-canvas p-4">
               <p className="text-xs font-semibold">{method.label}</p>
-              <p dir="ltr" className="mt-2 text-sm font-medium text-primary">{method.value === 0 ? "رایگان" : formatToman(method.value)}</p>
+              <p className="mt-2 text-sm font-medium text-primary">{method.valueText ?? (method.value === 0 ? "رایگان" : formatToman(method.value))}</p>
               <p className="mt-2 text-[11px] leading-5 text-ink/45">{method.note}</p>
             </div>
           ))}

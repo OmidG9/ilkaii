@@ -9,11 +9,20 @@ export const runtime = "nodejs";
 
 type CallbackStatus = "success" | "failed" | "pending" | "review";
 
-function redirect(orderNumber: string | undefined, status: CallbackStatus) {
-  const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-  return NextResponse.redirect(`${base}/checkout/result?${new URLSearchParams({
-    order: orderNumber ?? "", status,
-  })}`);
+function redirectResponse(request: NextRequest, orderNumber: string | undefined, status: CallbackStatus) {
+  // In development the app may run on a different port than
+  // NEXT_PUBLIC_BASE_URL (the dev script uses :3500). Always return to the
+  // origin that received the callback there; production keeps the canonical
+  // configured public URL for proxies.
+  const base = process.env.NODE_ENV === "production"
+    ? process.env.NEXT_PUBLIC_BASE_URL ?? request.nextUrl.origin
+    : request.nextUrl.origin;
+  const url = new URL("/checkout/result", base);
+  url.search = new URLSearchParams({
+    order: orderNumber ?? "",
+    status,
+  }).toString();
+  return NextResponse.redirect(url);
 }
 
 function statusParam(params: URLSearchParams) {
@@ -27,6 +36,9 @@ function statusParam(params: URLSearchParams) {
  * possibly-paid order).
  */
 async function handle(request: NextRequest) {
+  const redirect = (orderNumber: string | undefined, status: CallbackStatus) =>
+    redirectResponse(request, orderNumber, status);
+
   let params: URLSearchParams;
   try {
     params = request.method === "GET"

@@ -3,6 +3,7 @@ import { requirePagePermission } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getAdminProduct, listBrands } from "@/services/admin";
+import { listSuppliers } from "@/services/warehouse";
 import { ProductForm } from "@/components/admin/product-form";
 import { EntityManager, type EntityField } from "@/components/admin/entity-manager";
 import { ImageManager } from "@/components/admin/image-manager";
@@ -32,15 +33,20 @@ export default async function AdminProductDetailPage({ params, searchParams }: P
   } catch {
     notFound();
   }
-  const [categories, brands] = await Promise.all([
+  const [categories, brands, suppliers] = await Promise.all([
     prisma.category.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     listBrands(),
+    listSuppliers(),
   ]);
 
   const variantFields: EntityField[] = [
     { key: "size", label: "سایز", type: "text", required: true },
     { key: "color", label: "رنگ", type: "text" },
     { key: "sku", label: "SKU", type: "text", required: true },
+    { key: "barcode", label: "بارکد", type: "text", placeholder: "اختیاری" },
+    { key: "location", label: "قفسه / محل نگهداری", type: "text", placeholder: "A-12" },
+    { key: "supplierId", label: "تأمین‌کننده پیش‌فرض", type: "select", options: suppliers.map((supplier) => ({ value: supplier.id, label: supplier.name })) },
+    { key: "costPrice", label: "بهای خرید (تومان)", type: "number" },
     { key: "price", label: "قیمت جداگانه (تومان)", type: "number" },
     { key: "stock", label: "موجودی", type: "number", required: true },
     { key: "lowStockThreshold", label: "آستانه هشدار", type: "number" },
@@ -92,6 +98,9 @@ export default async function AdminProductDetailPage({ params, searchParams }: P
             { key: "size", label: "سایز" },
             { key: "color", label: "رنگ" },
             { key: "sku", label: "SKU", ltr: true },
+            { key: "barcode", label: "بارکد", ltr: true },
+            { key: "location", label: "قفسه" },
+            { key: "costPrice", label: "بهای خرید", ltr: true },
             { key: "price", label: "قیمت", ltr: true },
             { key: "stock", label: "موجودی" },
             { key: "isAvailable", label: "وضعیت" },
@@ -114,7 +123,7 @@ export default async function AdminProductDetailPage({ params, searchParams }: P
         <Card className="overflow-hidden">
           <div className="table-wrap">
             <table className="table-luxury">
-              <thead><tr><th>تاریخ</th><th>تنوع</th><th>تغییر</th><th>دلیل</th><th>توضیح</th></tr></thead>
+              <thead><tr><th>تاریخ</th><th>تنوع</th><th>تغییر</th><th>مانده</th><th>دلیل</th><th>توضیح</th></tr></thead>
               <tbody>
                 {product.movements.map((movement) => (
                   <tr key={movement.id}>
@@ -123,11 +132,12 @@ export default async function AdminProductDetailPage({ params, searchParams }: P
                     <td dir="ltr" className={movement.quantity > 0 ? "text-emerald-700" : "text-red-600"}>
                       {movement.quantity > 0 ? "+" : ""}{formatNumber(movement.quantity)}
                     </td>
+                    <td dir="ltr" className="text-xs">{movement.balanceAfter === null ? "—" : formatNumber(movement.balanceAfter)}</td>
                     <td>{inventoryReasonLabels[movement.reason]}</td>
                     <td className="text-xs text-ink/60">{movement.note ?? "—"}</td>
                   </tr>
                 ))}
-                {!product.movements.length ? <tr><td colSpan={5} className="py-8 text-center text-ink/50">تغییری ثبت نشده است.</td></tr> : null}
+                {!product.movements.length ? <tr><td colSpan={6} className="py-8 text-center text-ink/50">تغییری ثبت نشده است.</td></tr> : null}
               </tbody>
             </table>
           </div>

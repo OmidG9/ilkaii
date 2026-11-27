@@ -4,11 +4,11 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Activity, BarChart3, Bell, Boxes, ChevronDown, ChevronLeft, FileBarChart,
-  FileText, FolderTree, HeartPulse, Image as ImageIcon, Images, KeyRound, LayoutDashboard,
-  LayoutTemplate, LogOut, Mail, Megaphone, Menu, MessageSquare, Moon, Navigation, Newspaper,
-  Package, PanelBottom, PanelsTopLeft, Plus, RotateCcw, ScrollText, Search, Send, Settings,
-  ShieldCheck, ShoppingBag, ShoppingCart, Sun, Tag, TicketPercent, UserCog, Users, X,
+  Activity, BarChart3, Bell, Boxes, ChevronDown, ChevronLeft, ClipboardCheck, ClipboardList,
+  FileBarChart, FileText, FolderTree, HeartPulse, History, Image as ImageIcon, Images, KeyRound,
+  LayoutDashboard, LayoutTemplate, LogOut, Mail, Megaphone, Menu, MessageSquare, Moon, Navigation,
+  Newspaper, Package, PanelBottom, PanelsTopLeft, Plus, RotateCcw, ScrollText, Search, Send,
+  Settings, ShieldCheck, ShoppingBag, ShoppingCart, Sun, Tag, TicketPercent, Truck, UserCog, Users, X,
 } from "lucide-react";
 import type { AdminNavSection, AdminNotification } from "@/lib/admin-navigation";
 import type { AdminBadges } from "@/services/notifications";
@@ -19,6 +19,7 @@ const ICONS: Record<string, typeof LayoutDashboard> = {
   MessageSquare, PanelsTopLeft, FileText, LayoutTemplate, Image: ImageIcon, Navigation, Images,
   Newspaper, PanelBottom, Megaphone, Send, Mail, ShoppingCart, TicketPercent, BarChart3,
   Activity, Settings, UserCog, ShieldCheck, KeyRound, ScrollText, HeartPulse,
+  Truck, ClipboardList, ClipboardCheck, History,
 };
 
 const PATH_LABELS: Record<string, string> = {
@@ -31,6 +32,12 @@ const PATH_LABELS: Record<string, string> = {
   categories: "دسته‌بندی‌ها",
   brands: "برندها",
   inventory: "موجودی",
+  suppliers: "تأمین‌کنندگان",
+  "purchase-orders": "سفارش‌های خرید",
+  stocktakes: "انبارگردانی",
+  movements: "تاریخچه موجودی",
+  new: "جدید",
+  edit: "ویرایش",
   reviews: "نظرات",
   cms: "مدیریت محتوا",
   pages: "صفحات",

@@ -17,7 +17,7 @@ export default async function AdminSearchPage({ searchParams }: { searchParams: 
 
   return (
     <div>
-      <AdminPageHeader title="جستجوی سراسری" description="در محصولات، سفارش‌ها، مشتریان، صفحات و وبلاگ جستجو کنید. نتایج بر اساس دسترسی نقش شما فیلتر می‌شوند." />
+      <AdminPageHeader title="جستجوی سراسری" description="در محصولات، موجودی/بارکد، تأمین‌کنندگان، سفارش‌های خرید، سفارش‌ها، مشتریان، صفحات و وبلاگ جستجو کنید. نتایج بر اساس دسترسی نقش شما فیلتر می‌شوند." />
       <form method="get" className="admin-panel mb-6 flex flex-wrap gap-3 p-4">
         <input name="q" defaultValue={q} autoFocus placeholder="حداقل ۲ حرف…" className="field max-w-xl flex-1" aria-label="عبارت جستجو" />
         <button type="submit" className="inline-flex min-h-11 items-center rounded-xl bg-primary px-6 text-sm text-white">جستجو</button>

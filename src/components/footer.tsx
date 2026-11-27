@@ -23,6 +23,7 @@ const helpLinks = [
   { href: "/faq", label: "سؤالات متداول" },
   { href: "/policies/shipping", label: "ارسال و تحویل" },
   { href: "/policies/returns", label: "بازگشت کالا" },
+  { href: "/account/returns/new", label: "ثبت درخواست مرجوعی" },
   { href: "/track", label: "پیگیری سفارش" },
   { href: "/blog", label: "ژورنال" },
 ];

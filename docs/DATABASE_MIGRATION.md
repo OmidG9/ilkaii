@@ -51,6 +51,19 @@ run `npm run db:seed` (development only) or call the idempotent role bootstrap s
 the new built-in roles and permissions exist. Custom roles can then be created
 from `/admin/roles`.
 
+## Refund ledger
+
+`20261127160000_refunds` adds the immutable `Refund` ledger (partial/full refunds,
+provider reference, acting admin). Existing order/payment data is untouched.
+
+## Warehouse & inventory
+
+`20261127160000_warehouse_inventory` adds suppliers, purchase orders and items,
+stocktakes and items, variant barcode/cost/bin/default-supplier columns and
+ledger running balance/reference/unit-cost columns. All new columns are nullable
+or defaulted, so existing products, variants and movements are preserved. Legacy
+movements keep `balanceAfter = NULL`. See `docs/WAREHOUSE.md` for workflows.
+
 ## Resetting a development database
 
 ```bash

@@ -41,8 +41,10 @@ export interface DashboardData {
 export async function getDashboardData(range: DateRange): Promise<DashboardData> {
   const { from, to, previousFrom, previousTo } = range;
 
+  // Gross revenue includes orders that were later refunded; refunds are
+  // subtracted separately from the refund ledger (including partial refunds).
   const paidWhere: Prisma.OrderWhereInput = {
-    paymentStatus: "PAID",
+    paymentStatus: { in: ["PAID", "REFUNDED"] },
     OR: [
       { paidAt: { gte: from, lte: to } },
       { paidAt: null, createdAt: { gte: from, lte: to } },
@@ -71,20 +73,20 @@ export async function getDashboardData(range: DateRange): Promise<DashboardData>
   ] = await Promise.all([
     prisma.order.groupBy({ by: ["status"], where: { createdAt: { gte: from, lte: to } }, _count: { _all: true } }),
     prisma.order.aggregate({ where: paidWhere, _sum: { totalAmount: true, discountAmount: true, shippingCost: true }, _count: { _all: true } }),
-    prisma.order.aggregate({ where: { paymentStatus: "REFUNDED", updatedAt: { gte: from, lte: to } }, _sum: { totalAmount: true }, _count: { _all: true } }),
+    prisma.refund.aggregate({ where: { status: "COMPLETED", createdAt: { gte: from, lte: to } }, _sum: { amount: true }, _count: { _all: true } }),
     prisma.user.count({ where: { role: "CUSTOMER" } }),
     prisma.user.count({ where: { role: "CUSTOMER", createdAt: { gte: from, lte: to } } }),
     countLowStockVariants(),
     prisma.order.findMany({ where: { createdAt: { gte: from, lte: to } }, orderBy: { createdAt: "desc" }, take: 8, select: { id: true, orderNumber: true, totalAmount: true, status: true, createdAt: true } }),
     prisma.analyticsSession.count({ where: { firstSeenAt: { gte: from, lte: to } } }),
     prisma.analyticsSession.count({ where: { lastSeenAt: { gte: new Date(Date.now() - 30 * 60 * 1000) } } }),
-    prisma.order.aggregate({ where: { paymentStatus: "PAID", createdAt: { gte: previousFrom, lte: previousTo } }, _sum: { totalAmount: true } }),
+    prisma.order.aggregate({ where: { paymentStatus: { in: ["PAID", "REFUNDED"] }, createdAt: { gte: previousFrom, lte: previousTo } }, _sum: { totalAmount: true } }),
     prisma.$queryRaw<Array<{ day: string; total: unknown; count: unknown }>>(Prisma.sql`
       SELECT DATE_FORMAT(DATE_ADD(COALESCE(paidAt, createdAt), INTERVAL 210 MINUTE), '%Y-%m-%d') AS day,
              CAST(SUM(totalAmount) AS SIGNED) AS total,
              COUNT(*) AS count
       FROM \`Order\`
-      WHERE paymentStatus = 'PAID' AND COALESCE(paidAt, createdAt) BETWEEN ${from} AND ${to}
+      WHERE paymentStatus IN ('PAID', 'REFUNDED') AND COALESCE(paidAt, createdAt) BETWEEN ${from} AND ${to}
       GROUP BY day ORDER BY day ASC`),
     prisma.$queryRaw<Array<{ day: string; count: unknown; total: unknown }>>(Prisma.sql`
       SELECT DATE_FORMAT(DATE_ADD(createdAt, INTERVAL 210 MINUTE), '%Y-%m-%d') AS day,
@@ -140,8 +142,17 @@ export async function getDashboardData(range: DateRange): Promise<DashboardData>
 
   const statusCount = (status: string) => num(orderCounts.find((row) => row.status === status)?._count._all);
   const completed = ["PAID", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED"].reduce((sum, status) => sum + statusCount(status), 0);
+  // Orders refunded before the refund ledger existed have no Refund rows.
+  const legacyRefunds = await prisma.order.aggregate({
+    where: {
+      paymentStatus: "REFUNDED",
+      updatedAt: { gte: from, lte: to },
+      refunds: { none: { status: "COMPLETED" } },
+    },
+    _sum: { totalAmount: true },
+  });
   const gross = toToman(paidAggregate._sum.totalAmount ?? 0);
-  const refunds = toToman(refundAggregate._sum.totalAmount ?? 0);
+  const refunds = toToman(refundAggregate._sum.amount ?? 0) + toToman(legacyRefunds._sum.totalAmount ?? 0);
   const paidOrders = num(paidAggregate._count._all);
   const buyerIdList = buyerIds.map((row) => row.userId);
   const returningRows = buyerIdList.length

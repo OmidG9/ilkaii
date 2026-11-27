@@ -67,7 +67,7 @@ test("checkoutSchema requires an address reference or payload", () => {
   );
   assert.equal(
     checkoutSchema.safeParse({ addressId: "clx1234567890", paymentMethod: "COD" }).success,
-    true,
+    false,
   );
   assert.equal(
     checkoutSchema.safeParse({ address: validAddress, shippingMethod: "ALOPEYK", paymentGateway: "ZIBAL" }).success,

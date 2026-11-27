@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requirePageUser } from "@/lib/auth/session";
 import { getUserOrder } from "@/services/account";
@@ -7,9 +8,10 @@ import { Card, SectionTitle } from "@/components/ui/display";
 import { ButtonLink } from "@/components/ui/button";
 import { SafeImage } from "@/components/safe-image";
 import { ReturnForm } from "@/components/return-form";
+import { computeReturnableLines, hasOpenReturnWindow, isReturnEligibleStatus, latestDeliveredAt } from "@/lib/returns";
 import { formatJalali, formatNumber } from "@/lib/persian";
 import { formatToman } from "@/lib/money";
-import { orderStatusLabels, paymentStatusLabels, returnStatusLabels } from "@/lib/labels";
+import { orderStatusLabels, paymentStatusLabels, refundStatusLabels, returnStatusLabels } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "جزئیات سفارش", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -28,20 +30,13 @@ export default async function OrderDetailPage({ params }: Props) {
   const site = await getSiteConfig();
   const canResume = order.status === "PENDING_PAYMENT" && order.paymentStatus === "PENDING" &&
     order.payments.some((payment) => payment.status === "PENDING");
-  const requestedByItem = new Map<string, number>();
-  for (const request of order.returnRequests) {
-    if (request.status === "REJECTED") continue;
-    for (const item of request.items) {
-      requestedByItem.set(item.orderItemId, (requestedByItem.get(item.orderItemId) ?? 0) + item.quantity);
-    }
-  }
-  const returnableItems = order.items.map((item) => ({
-    id: item.id,
-    productName: item.productName,
-    variantName: item.variantName,
-    quantity: item.quantity,
-    returnable: Math.max(0, item.quantity - (requestedByItem.get(item.id) ?? 0)),
-  }));
+  const returnEligible = hasOpenReturnWindow(order.status, latestDeliveredAt(order.statusHistory));
+  const returnWindowExpired = isReturnEligibleStatus(order.status) && !returnEligible;
+  const returnableItems = computeReturnableLines(
+    order.items,
+    order.returnRequests.filter((request) => request.status !== "REJECTED"),
+  );
+  const hasReturnableItems = returnableItems.some((item) => item.returnable > 0);
   const hasLegacyActiveReturn = order.returnRequests.some(
     (request) => request.status !== "REJECTED" && request.items.length === 0,
   );
@@ -61,6 +56,15 @@ export default async function OrderDetailPage({ params }: Props) {
               ادامه پرداخت
             </ButtonLink>
           ) : null}
+          {returnEligible ? (
+            <ButtonLink href="#return-request" variant="outline" size="sm">
+              درخواست مرجوعی
+            </ButtonLink>
+          ) : (
+            <ButtonLink href="/policies/returns" variant="ghost" size="sm">
+              شرایط مرجوعی
+            </ButtonLink>
+          )}
         </div>
       </div>
 
@@ -146,15 +150,55 @@ export default async function OrderDetailPage({ params }: Props) {
         </Card>
       ) : null}
 
-      {["SHIPPED", "DELIVERED"].includes(order.status) ? (
-        <section>
-          <SectionTitle title="درخواست بازگشت" />
-          {hasLegacyActiveReturn ? (
-            <Card className="p-6 text-sm text-ink/60">درخواست بازگشت قبلی این سفارش در حال بررسی است.</Card>
-          ) : (
-            <ReturnForm orderId={order.id} items={returnableItems} />
-          )}
-        </section>
+      <section id="return-request" className="scroll-mt-28">
+        <SectionTitle
+          title="درخواست بازگشت / مرجوعی"
+          subtitle={returnEligible
+            ? "اقلام و تعداد قابل بازگشت را انتخاب کنید. پس از ثبت، وضعیت درخواست در همین صفحه و بخش مرجوعی‌ها قابل پیگیری است."
+            : returnWindowExpired
+              ? "مهلت بازگشت این سفارش به پایان رسیده است."
+              : "درخواست مرجوعی پس از ارسال سفارش فعال می‌شود. تا آن زمان می‌توانید شرایط بازگشت را مطالعه کنید."}
+        />
+        {!returnEligible ? (
+          <Card className="p-6 text-sm leading-7 text-ink/60">
+            {returnWindowExpired ? (
+              <>
+                مهلت ۷ روزهٔ بازگشت این سفارش به پایان رسیده است. برای پیگیری موارد خاص با پشتیبانی تماس بگیرید. شرایط کامل در{" "}
+                <Link href="/policies/returns" className="text-primary underline">سیاست بازگشت کالا</Link> آمده است.
+              </>
+            ) : (
+              <>
+                سفارش شما هنوز ارسال نشده است. پس از ثبت ارسال توسط فروشگاه، دکمهٔ «درخواست مرجوعی» در بالای همین صفحه فعال
+                می‌شود. برای آشنایی با شرایط، <Link href="/policies/returns" className="text-primary underline">سیاست بازگشت کالا</Link> را ببینید.
+              </>
+            )}
+          </Card>
+        ) : hasLegacyActiveReturn ? (
+          <Card className="p-6 text-sm text-ink/60">درخواست بازگشت قبلی این سفارش در حال بررسی است.</Card>
+        ) : hasReturnableItems ? (
+          <ReturnForm orderId={order.id} items={returnableItems} />
+        ) : (
+          <Card className="p-6 text-sm leading-7 text-ink/60">
+            همهٔ اقلام این سفارش قبلاً مرجوع شده یا درخواست بازگشت آن‌ها ثبت شده است.
+            {" "}<Link href="/account/returns" className="text-primary underline">مشاهده درخواست‌های من</Link>
+          </Card>
+        )}
+      </section>
+
+      {order.refunds.length ? (
+        <Card className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">بازپرداخت‌ها</h2>
+          <div className="space-y-2 text-sm">
+            {order.refunds.map((refund) => (
+              <div key={refund.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line px-3 py-2">
+                <span dir="ltr" className="font-medium text-primary">{formatToman(refund.amount)}</span>
+                <span className="text-xs text-ink/55">{refundStatusLabels[refund.status]}</span>
+                {refund.reference ? <span dir="ltr" className="text-xs text-ink/45">{refund.reference}</span> : null}
+                <span className="text-xs text-ink/45">{formatJalali(refund.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
       ) : null}
 
       {site.store.invoiceFooter ? (

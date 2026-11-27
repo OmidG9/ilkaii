@@ -8,6 +8,8 @@ import { normalizeForSearch } from "@/lib/persian";
 import { getCartView, restoreCartFromOrder } from "@/services/cart";
 import { getPaymentProvider } from "@/services/payment";
 import { recordAnalyticsEvent } from "@/services/analytics";
+import { notifyOrder } from "@/services/messaging";
+import { recordInventoryMovement } from "@/services/inventory-ledger";
 import { invalidateCache } from "@/lib/cache";
 import { audit } from "@/lib/audit";
 import type { CheckoutInput } from "@/services/types";
@@ -28,10 +30,10 @@ function orderNumber(prefix = "ILK") {
 }
 
 /** Rebuild a gateway URL for a payment whose first response may have been lost. */
-export function paymentResumeUrl(provider: string, authority: string | null, orderId: string, total: number): string | undefined {
+export function paymentResumeUrl(provider: string, authority: string | null, orderId: string): string | undefined {
   if (!authority) return undefined;
   if (provider === "MOCK") {
-    return `/api/payments/mock?order=${encodeURIComponent(orderId)}&amount=${total}`;
+    return `/payment-sandbox?order=${encodeURIComponent(orderId)}`;
   }
   if (provider === "ZARINPAL") {
     const sandbox = process.env.ZARINPAL_SANDBOX === "true";
@@ -67,7 +69,7 @@ export async function createCheckout(
   input: CheckoutInput,
   userId: string,
   idempotencyKey: string,
-  options: { analyticsSessionId?: string | null } = {},
+  options: { analyticsSessionId?: string | null; baseUrl?: string } = {},
 ): Promise<CheckoutResult> {
   const existing = await prisma.payment.findUnique({
     where: { idempotencyKey },
@@ -100,7 +102,7 @@ export async function createCheckout(
         // If the first response was lost after the gateway session was created,
         // send the shopper back to the same payment instead of dead-ending.
         redirectUrl: pendingPayment
-          ? paymentResumeUrl(existing.provider, existing.authority, order.id, total)
+          ? paymentResumeUrl(existing.provider, existing.authority, order.id)
           : undefined,
         message: order.paymentStatus === "PAID" ? "این سفارش قبلاً پرداخت شده است" : "سفارش قبلاً ثبت شده است",
       };
@@ -111,7 +113,6 @@ export async function createCheckout(
   if (!cart.id || !cart.items.length) throw Errors.badRequest("سبد خرید خالی است");
 
   const site = await getSiteConfig();
-  const isCod = input.paymentMethod === "COD";
 
   const result = await prisma.$transaction(async (tx) => {
     const freshItems = await tx.cartItem.findMany({
@@ -201,12 +202,10 @@ export async function createCheckout(
     const ship = shippingCost(site.shipping, input.shippingMethod, subtotal);
     const totals = orderTotals({ subtotal, discount, shipping: ship });
 
-    // COD orders are confirmed immediately (cash is collected on delivery), and
-    // a fully discounted order needs no gateway session at all. Resolve the
-    // gateway only for orders that actually need one.
-    const isFree = !isCod && totals.total === 0;
-    const gateway = !isCod && !isFree ? await getPaymentProvider(input.paymentGateway) : null;
-    const initialStatus: OrderStatus = isCod ? "PROCESSING" : isFree ? "PAID" : "PENDING_PAYMENT";
+    // A fully discounted order needs no gateway session at all.
+    const isFree = totals.total === 0;
+    const gateway = !isFree ? await getPaymentProvider(input.paymentGateway) : null;
+    const initialStatus: OrderStatus = isFree ? "PAID" : "PENDING_PAYMENT";
     const initialPaymentStatus: "PENDING" | "PAID" = isFree ? "PAID" : "PENDING";
 
     const order = await tx.order.create({
@@ -217,7 +216,7 @@ export async function createCheckout(
         paymentStatus: initialPaymentStatus,
         paidAt: isFree ? new Date() : null,
         paymentMethod: input.paymentMethod,
-        paymentGateway: isCod || isFree ? null : input.paymentGateway,
+        paymentGateway: isFree ? null : input.paymentGateway,
         shippingMethod: input.shippingMethod,
         ...addressSnapshot,
         subtotal: toDecimalString(totals.subtotal),
@@ -242,7 +241,7 @@ export async function createCheckout(
         statusHistory: {
           create: {
             toStatus: initialStatus,
-            note: isCod ? "سفارش ثبت شد؛ پرداخت هنگام تحویل" : isFree ? "سفارش با تخفیف کامل ثبت شد" : "سفارش ایجاد شد",
+            note: isFree ? "سفارش با تخفیف کامل ثبت شد" : "سفارش ایجاد شد",
           },
         },
       },
@@ -255,11 +254,15 @@ export async function createCheckout(
         data: { stock: { decrement: line.item.quantity } },
       });
       if (!updated.count) throw Errors.conflict(`موجودی ${line.product.name} تغییر کرده است`);
-      await tx.inventoryMovement.create({
-        data: {
-          variantId: line.item.variantId, orderId: order.id, quantity: -line.item.quantity,
-          reason: "SALE", note: `سفارش ${order.orderNumber}`, userId,
-        },
+      await recordInventoryMovement(tx, {
+        variantId: line.item.variantId,
+        orderId: order.id,
+        quantity: -line.item.quantity,
+        reason: "SALE",
+        note: `سفارش ${order.orderNumber}`,
+        userId,
+        referenceType: "ORDER",
+        referenceId: order.id,
       });
       const sum = await tx.productVariant.aggregate({
         where: { productId: line.product.id }, _sum: { stock: true },
@@ -273,9 +276,9 @@ export async function createCheckout(
     await tx.payment.create({
       data: {
         orderId: order.id,
-        provider: isCod ? "COD" : isFree ? "FREE" : gateway!.name,
+        provider: isFree ? "FREE" : gateway!.name,
         amount: toDecimalString(totals.total),
-        // COD cash is collected on delivery; free orders are settled instantly.
+        // Free orders are settled instantly; online orders await the gateway.
         status: isFree ? "PAID" : "PENDING",
         idempotencyKey,
       },
@@ -294,10 +297,10 @@ export async function createCheckout(
   });
 
   let redirectUrl: string | undefined;
-  const isFree = !isCod && result.totals.total === 0;
+  const isFree = result.totals.total === 0;
   const provider = result.provider;
   if (provider && !isFree) {
-    const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+    const base = (options.baseUrl ?? process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
     try {
       const initiated = await provider.initiate({
         orderId: result.order.id,
@@ -318,12 +321,12 @@ export async function createCheckout(
     }
   }
 
-  if ((isCod || isFree) && options.analyticsSessionId) {
+  if (isFree && options.analyticsSessionId) {
     await recordAnalyticsEvent({
       eventId: `purchase-${result.order.id}`,
       name: "purchase",
       path: "/checkout/result",
-      metadata: { revenue: result.totals.total, orderId: result.order.id, orderNumber: result.order.orderNumber, method: isCod ? "COD" : "FREE" },
+      metadata: { revenue: result.totals.total, orderId: result.order.id, orderNumber: result.order.orderNumber, method: "FREE" },
     }, {
       sessionId: options.analyticsSessionId,
       customerId: userId,
@@ -331,6 +334,7 @@ export async function createCheckout(
       serverEvent: true,
     });
   }
+  if (isFree) void notifyOrder(result.order.id, "PAID");
 
   invalidateCache("dashboard:");
   return {
@@ -362,11 +366,15 @@ async function compensateInitiation(orderId: string, actorId: string) {
         where: { id: item.variantId },
         data: { stock: { increment: item.quantity } },
       });
-      await tx.inventoryMovement.create({
-        data: {
-          variantId: item.variantId, orderId, quantity: item.quantity,
-          reason: "CANCELLATION", note: "آغاز پرداخت ناموفق", userId: actorId,
-        },
+      await recordInventoryMovement(tx, {
+        variantId: item.variantId,
+        orderId,
+        quantity: item.quantity,
+        reason: "CANCELLATION",
+        note: "آغاز پرداخت ناموفق",
+        userId: actorId,
+        referenceType: "ORDER",
+        referenceId: orderId,
       });
       const variant = await tx.productVariant.findUnique({
         where: { id: item.variantId },
@@ -480,8 +488,14 @@ export async function finalizePayment(params: {
     for (const item of items) {
       if (!item.variantId) continue;
       await tx.productVariant.update({ where: { id: item.variantId }, data: { stock: { increment: item.quantity } } });
-      await tx.inventoryMovement.create({
-        data: { variantId: item.variantId, orderId: current.id, quantity: item.quantity, reason: "CANCELLATION", note: "پرداخت ناموفق" },
+      await recordInventoryMovement(tx, {
+        variantId: item.variantId,
+        orderId: current.id,
+        quantity: item.quantity,
+        reason: "CANCELLATION",
+        note: "پرداخت ناموفق",
+        referenceType: "ORDER",
+        referenceId: current.id,
       });
       const variant = await tx.productVariant.findUnique({ where: { id: item.variantId }, select: { productId: true } });
       if (variant) {
@@ -501,6 +515,7 @@ export async function finalizePayment(params: {
     return updated;
   });
 
+  if (params.success) void notifyOrder(outcome.id, "PAID");
   if (params.success && outcome.analyticsSessionId) {
     await recordAnalyticsEvent({
       eventId: `purchase-${outcome.id}`,
@@ -539,11 +554,15 @@ export async function cancelOrder(orderId: string, actorId: string | null, note?
         select: { productId: true },
       });
       touchedProducts.add(variant.productId);
-      await tx.inventoryMovement.create({
-        data: {
-          variantId: item.variantId, orderId, quantity: item.quantity,
-          reason: "CANCELLATION", note: note ?? (wasPaid ? "لغو سفارش" : "لغو سفارش پرداخت‌نشده"), userId: actorId,
-        },
+      await recordInventoryMovement(tx, {
+        variantId: item.variantId,
+        orderId,
+        quantity: item.quantity,
+        reason: "CANCELLATION",
+        note: note ?? (wasPaid ? "لغو سفارش" : "لغو سفارش پرداخت‌نشده"),
+        userId: actorId,
+        referenceType: "ORDER",
+        referenceId: orderId,
       });
     }
     for (const productId of touchedProducts) {
@@ -575,6 +594,7 @@ export async function cancelOrder(orderId: string, actorId: string | null, note?
   });
 
   await audit({ actorId, action: "order.cancelled", entity: "Order", entityId: orderId, metadata: { note } });
+  void notifyOrder(orderId, "CANCELLED");
   // A COD purchase event was recorded at checkout, so cancellation must offset
   // it. Online orders only emit purchase after a successful payment.
   const { order, wasPaid } = cancelled;

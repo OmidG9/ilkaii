@@ -10,7 +10,7 @@ const links = [
   { href: "/account/addresses", label: "آدرس‌ها", icon: MapPin },
   { href: "/account/wishlist", label: "علاقه‌مندی‌ها", icon: Heart },
   { href: "/account/reviews", label: "نظرات من", icon: Star },
-  { href: "/account/returns", label: "بازگشت‌ها", icon: RotateCcw },
+  { href: "/account/returns", label: "مرجوعی و بازگشت", icon: RotateCcw },
 ];
 
 export function AccountNav() {

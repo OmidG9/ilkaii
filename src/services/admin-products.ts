@@ -3,6 +3,7 @@ import { Errors } from "@/lib/errors";
 import { audit } from "@/lib/audit";
 import { toDecimalString, toToman } from "@/lib/money";
 import { recalcProductStock } from "@/services/catalog";
+import { recordInventoryMovement } from "@/services/inventory-ledger";
 
 export type BulkProductAction =
   | { action: "status"; ids: string[]; status: "DRAFT" | "ACTIVE" | "INACTIVE" | "DISCONTINUED" }
@@ -49,12 +50,13 @@ export async function bulkProductAction(input: BulkProductAction, actorId: strin
           const next = input.mode === "set" ? Math.max(0, Math.round(input.value)) : Math.max(0, variant.stock + Math.round(input.value));
           if (next === variant.stock) continue;
           await tx.productVariant.update({ where: { id: variant.id }, data: { stock: next } });
-          await tx.inventoryMovement.create({
-            data: {
-              variantId: variant.id, quantity: next - variant.stock,
-              reason: input.mode === "set" ? "ADJUSTMENT" : "RESTOCK",
-              note: "به‌روزرسانی گروهی موجودی", userId: actorId,
-            },
+          await recordInventoryMovement(tx, {
+            variantId: variant.id,
+            quantity: next - variant.stock,
+            reason: input.mode === "set" ? "ADJUSTMENT" : "RESTOCK",
+            note: "به‌روزرسانی گروهی موجودی",
+            userId: actorId,
+            referenceType: "BULK_ADJUSTMENT",
           });
         }
         await recalcProductStock(tx, product.id);

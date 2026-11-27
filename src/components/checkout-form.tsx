@@ -8,7 +8,6 @@ import {
   Mail,
   Package,
   ShieldCheck,
-  Wallet,
 } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Alert, Card, EmptyState } from "@/components/ui/display";
@@ -63,7 +62,6 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
     label: "خانه", fullName: "", phone, province: "", city: "", street: "", postalCode: "", isDefault: false,
   });
   const [shippingMethod, setShippingMethod] = useState<ShippingMethodKey>("PISHTAZ");
-  const [paymentMethod, setPaymentMethod] = useState<"ONLINE" | "COD">("ONLINE");
   const [paymentGateway, setPaymentGateway] = useState<PaymentGatewayName>("ZARINPAL");
   const [couponCode, setCouponCode] = useState("");
   const [message, setMessage] = useState<{ text: string; tone: "info" | "error" | "success" } | null>(null);
@@ -81,14 +79,16 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
       title: "نرخ ثابت",
       description: "ارسال با نرخ ثابت به سراسر کشور",
       price: shipping.flat,
+      priceText: undefined,
       eta: "۲ تا ۴ روز کاری",
       icon: Banknote,
     },
     {
       key: "ALOPEYK" as const,
       title: "الو پیک",
-      description: "ارسال سریع درون‌شهری",
+      description: "کرایه هنگام تحویل بر عهدهٔ مشتری است",
       price: shipping.alopeyk,
+      priceText: "نرخ روز",
       eta: "تحویل سریع",
       icon: Bike,
       tehranOnly: true,
@@ -98,6 +98,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
       title: "پست پیشتاز",
       description: "ارسال سراسری با کد رهگیری",
       price: shipping.pishtaz,
+      priceText: undefined,
       eta: "۲ تا ۴ روز کاری",
       icon: Mail,
     },
@@ -106,6 +107,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
       title: "تیپاکس",
       description: "ارسال ایمن و قابل پیگیری",
       price: shipping.tipax,
+      priceText: undefined,
       eta: "۲ تا ۴ روز کاری",
       icon: Package,
     },
@@ -157,7 +159,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
 
     setBusy(true);
     try {
-      track("add_shipping_info", { metadata: { shippingMethod, paymentMethod, itemCount: cart.itemCount, subtotal: cart.subtotal } });
+      track("add_shipping_info", { metadata: { shippingMethod, itemCount: cart.itemCount, subtotal: cart.subtotal } });
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: {
@@ -169,15 +171,15 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
             address: { ...form, phone: normalizeIranianPhone(form.phone) },
           }),
           shippingMethod,
-          paymentMethod,
-          ...(paymentMethod === "ONLINE" ? { paymentGateway } : {}),
+          paymentMethod: "ONLINE",
+          paymentGateway,
           ...(couponCode ? { couponCode } : {}),
         }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "ثبت سفارش ناموفق بود");
       if (body.data.redirectUrl) {
-        track("payment_initiated", { metadata: { orderNumber: body.data.orderNumber, paymentMethod, paymentGateway, total: body.data.total ?? null } });
+        track("payment_initiated", { metadata: { orderNumber: body.data.orderNumber, paymentGateway, total: body.data.total ?? null } });
         window.location.assign(body.data.redirectUrl);
         return;
       }
@@ -305,8 +307,12 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                       <span className="text-sm font-semibold">{option.title}</span>
-                      <span dir="ltr" className="text-xs font-semibold text-primary">
-                        {cart.subtotal >= shipping.freeThreshold || option.price === 0 ? "رایگان" : formatToman(option.price)}
+                      <span className="text-xs font-semibold text-primary">
+                        {option.priceText
+                          ? option.priceText
+                          : cart.subtotal >= shipping.freeThreshold || option.price === 0
+                            ? "رایگان"
+                            : formatToman(option.price)}
                       </span>
                     </span>
                     <span className="mt-1 block text-[11px] leading-5 text-ink/45">{option.description}</span>
@@ -340,7 +346,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
 
           <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-label="درگاه پرداخت">
             {gatewayOrder.map((gateway) => {
-              const selected = paymentMethod === "ONLINE" && paymentGateway === gateway;
+              const selected = paymentGateway === gateway;
               return (
                 <label
                   key={gateway}
@@ -354,10 +360,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
                     value={gateway}
                     className="sr-only"
                     checked={selected}
-                    onChange={() => {
-                      setPaymentMethod("ONLINE");
-                      setPaymentGateway(gateway);
-                    }}
+                    onChange={() => setPaymentGateway(gateway)}
                   />
                   <span className="flex items-start justify-between gap-2">
                     <PaymentGatewayLogo gateway={gateway} className="h-11 w-11 rounded-xl shadow-sm" />
@@ -373,27 +376,6 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
               );
             })}
           </div>
-
-          <label className={`mt-3 flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-all focus-within:ring-2 focus-within:ring-primary/30 ${paymentMethod === "COD" ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "border-line bg-surface hover:border-primary/40"}`}>
-            <input
-              type="radio"
-              name="paymentMethod"
-              value="COD"
-              className="sr-only"
-              checked={paymentMethod === "COD"}
-              onChange={() => setPaymentMethod("COD")}
-            />
-            <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${paymentMethod === "COD" ? "bg-primary text-white" : "bg-canvas text-primary/70"}`}>
-              <Wallet className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold">پرداخت در محل</span>
-              <span className="mt-0.5 block text-[10px] text-ink/45">پرداخت نقدی یا با کارت هنگام تحویل سفارش</span>
-            </span>
-            <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full border ${paymentMethod === "COD" ? "border-primary bg-primary text-white" : "border-line bg-surface text-transparent"}`}>
-              <Check className="h-3 w-3" />
-            </span>
-          </label>
 
           <p className="mt-4 flex items-center gap-2 text-[10px] leading-5 text-ink/40">
             <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
@@ -424,7 +406,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
           <div className="flex justify-between"><dt className="text-ink/60">جمع کالاها</dt><dd dir="ltr">{formatToman(cart.subtotal)}</dd></div>
           <div className="flex justify-between gap-3">
             <dt className="text-ink/60">ارسال — {selectedShipping?.title ?? "پست پیشتاز"}</dt>
-            <dd dir="ltr">{shippingCost === 0 ? "رایگان" : formatToman(shippingCost)}</dd>
+            <dd className="text-left">{shippingMethod === "ALOPEYK" ? "نرخ روز" : shippingCost === 0 ? "رایگان" : formatToman(shippingCost)}</dd>
           </div>
           <div className="flex justify-between border-t border-line pt-4 text-base font-semibold">
             <dt>برآورد مبلغ</dt><dd dir="ltr" className="text-primary">{formatToman(cart.subtotal + shippingCost)}</dd>
@@ -433,11 +415,7 @@ export function CheckoutForm({ cart, addresses, phone, shipping, couponEnabled }
         <p className="mt-3 text-xs text-ink/50">تخفیف احتمالی در تأیید نهایی سرور اعمال می‌شود.</p>
         {message ? <div className="mt-4"><Alert tone={message.tone}>{message.text}</Alert></div> : null}
         <Button type="submit" size="lg" className="mt-6 w-full" disabled={busy || unavailable.length > 0}>
-          {busy
-            ? "در حال ثبت سفارش..."
-            : paymentMethod === "COD"
-              ? "ثبت سفارش (پرداخت در محل)"
-              : `پرداخت با ${gatewayTitles[paymentGateway]}`}
+          {busy ? "در حال ثبت سفارش..." : `پرداخت با ${gatewayTitles[paymentGateway]}`}
         </Button>
       </Card>
     </form>

@@ -3,11 +3,9 @@ import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { Errors } from "@/lib/errors";
 import { audit } from "@/lib/audit";
-import { isProduction } from "@/lib/env";
-import { getServerEnv } from "@/lib/env";
-import { getSecret } from "@/lib/secrets";
 import type { CampaignChannel, CampaignStatus, SubscriberStatus } from "@prisma/client";
 import { toToman } from "@/lib/money";
+import { getMessagingProvider } from "@/services/messaging";
 
 const num = (value: unknown): number => Number(value ?? 0);
 
@@ -203,56 +201,6 @@ export async function marketingStats() {
   return { campaigns, active, subscribers, activeSubscribers, abandonedCarts: carts.length, abandonedCartValue: carts.reduce((sum, cart) => sum + cart.value, 0) };
 }
 
-// ---------------------------------------------------------------------------
-// Notification adapters
-// ---------------------------------------------------------------------------
-
-export interface NotificationMessage {
-  to: string;
-  subject?: string;
-  text: string;
-}
-
-export interface NotificationProvider {
-  readonly name: string;
-  send(message: NotificationMessage): Promise<void>;
-}
-
-/** Development provider. It never performs network calls and is blocked in production. */
-const mockProvider: NotificationProvider = {
-  name: "MOCK",
-  async send(message) {
-    if (isProduction()) throw Errors.unavailable("ارسال‌کننده آزمایشی در محیط تولید غیرفعال است");
-    console.info(JSON.stringify({ level: "info", message: "mock_notification", to: message.to.slice(0, 6) + "…" }));
-  },
-};
-
-async function httpProvider(channel: CampaignChannel): Promise<NotificationProvider> {
-  const env = getServerEnv();
-  const [storedSmsUrl, storedSmsToken, storedEmailKey] = await Promise.all([
-    channel === "SMS" ? getSecret("sms.api_url").catch(() => null) : Promise.resolve(null),
-    channel === "SMS" ? getSecret("sms.api_token").catch(() => null) : Promise.resolve(null),
-    channel === "EMAIL" ? getSecret("email.api_key").catch(() => null) : Promise.resolve(null),
-  ]);
-  const url = channel === "SMS" ? (storedSmsUrl || env.SMS_API_URL) : process.env.EMAIL_API_URL;
-  const token = channel === "SMS" ? (storedSmsToken || env.SMS_API_TOKEN) : storedEmailKey;
-  if (!url || !token) {
-    if (isProduction()) throw Errors.unavailable(`سرویس ${channel === "SMS" ? "پیامک" : "ایمیل"} پیکربندی نشده است`);
-    return mockProvider;
-  }
-  return {
-    name: channel === "SMS" ? "SMS_HTTP" : "EMAIL_HTTP",
-    async send(message) {
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-        body: JSON.stringify({ to: message.to, subject: message.subject, text: message.text }),
-      });
-      if (!response.ok) throw new Error(`Provider rejected message (${response.status})`);
-    },
-  };
-}
-
 export async function dispatchCampaign(id: string, actorId: string) {
   const campaign = await prisma.marketingCampaign.findUnique({ where: { id } });
   if (!campaign) throw Errors.notFound("کمپین یافت نشد");
@@ -282,7 +230,8 @@ export async function dispatchCampaign(id: string, actorId: string) {
 
   if (!recipients.length) throw Errors.conflict("گیرنده‌ای با رضایت بازاریابی یافت نشد");
 
-  const provider = await httpProvider(campaign.channel);
+  const channel = campaign.channel === "SMS" ? "SMS" : "EMAIL";
+  const provider = await getMessagingProvider(channel);
   let sent = 0;
   let failed = 0;
   for (const recipient of recipients.slice(0, 500)) {
@@ -292,13 +241,13 @@ export async function dispatchCampaign(id: string, actorId: string) {
     try {
       await provider.send({ to: recipient.to, subject: campaign.subject ?? campaign.name, text });
       await prisma.notificationLog.create({
-        data: { channel: campaign.channel, recipient: recipient.to, template: campaign.name, subject: campaign.subject, status: "SENT", provider: provider.name, sentAt: new Date() },
+        data: { channel, recipient: recipient.to, template: campaign.name, subject: campaign.subject, status: "SENT", provider: provider.name, sentAt: new Date() },
       });
       if (recipient.customerId) await prisma.user.update({ where: { id: recipient.customerId }, data: { lastActivityAt: new Date() } }).catch(() => undefined);
       sent += 1;
     } catch (error) {
       await prisma.notificationLog.create({
-        data: { channel: campaign.channel, recipient: recipient.to, template: campaign.name, subject: campaign.subject, status: "FAILED", provider: provider.name, error: error instanceof Error ? error.message.slice(0, 500) : "unknown" },
+        data: { channel, recipient: recipient.to, template: campaign.name, subject: campaign.subject, status: "FAILED", provider: provider.name, error: error instanceof Error ? error.message.slice(0, 500) : "unknown" },
       });
       failed += 1;
     }

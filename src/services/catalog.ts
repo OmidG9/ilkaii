@@ -1,8 +1,9 @@
-import type { Prisma } from "@prisma/client";
+import type { InventoryReason, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { Errors } from "@/lib/errors";
 import { discountPercent, effectivePrice, toToman } from "@/lib/money";
 import { normalizeForSearch } from "@/lib/persian";
+import { recordInventoryMovement } from "@/services/inventory-ledger";
 import type { CategoryInput, ProductInput, VariantInput } from "@/services/types";
 
 export function makeSlug(value: string): string {
@@ -313,29 +314,70 @@ export async function deleteProduct(id: string) {
   if (!result.count) throw Errors.notFound("محصول یافت نشد");
 }
 
-export async function upsertVariant(productId: string, input: VariantInput, variantId?: string) {
+export async function upsertVariant(productId: string, input: VariantInput, variantId?: string, actorId?: string) {
   const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
   if (!product) throw Errors.notFound("محصول یافت نشد");
   const data = {
     size: input.size,
     color: input.color ?? null,
     sku: input.sku,
+    barcode: input.barcode ?? null,
+    location: input.location ?? null,
     price: input.price ?? null,
+    costPrice: input.costPrice ?? null,
     stock: input.stock,
     lowStockThreshold: input.lowStockThreshold,
     isAvailable: input.isAvailable,
+    supplierId: input.supplierId ?? null,
   };
-  if (variantId) {
-    return prisma.productVariant.update({ where: { id: variantId, productId }, data });
-  }
-  return prisma.productVariant.create({ data: { ...data, productId } });
+  return prisma.$transaction(async (tx) => {
+    if (variantId) {
+      const existing = await tx.productVariant.findFirst({
+        where: { id: variantId, productId },
+        select: { stock: true },
+      });
+      if (!existing) throw Errors.notFound("تنوع یافت نشد");
+      const variant = await tx.productVariant.update({ where: { id: variantId }, data });
+      const delta = input.stock - existing.stock;
+      if (delta !== 0) {
+        await recordInventoryMovement(tx, {
+          variantId,
+          quantity: delta,
+          reason: delta > 0 ? "RESTOCK" : "ADJUSTMENT",
+          note: "به‌روزرسانی موجودی از فرم تنوع محصول",
+          userId: actorId ?? null,
+        });
+      }
+      await recalcProductStock(tx, productId);
+      return variant;
+    }
+    const variant = await tx.productVariant.create({ data: { ...data, productId } });
+    if (data.stock > 0) {
+      await recordInventoryMovement(tx, {
+        variantId: variant.id,
+        quantity: data.stock,
+        reason: "RESTOCK",
+        note: "موجودی اولیه تنوع محصول",
+        userId: actorId ?? null,
+      });
+    }
+    await recalcProductStock(tx, productId);
+    return variant;
+  });
 }
 
 export async function deleteVariant(productId: string, variantId: string) {
   const count = await prisma.cartItem.count({ where: { variantId } });
   const orders = await prisma.orderItem.count({ where: { variantId } });
-  if (count || orders) throw Errors.conflict("این تنوع در سفارشها یا سبدها استفاده شده است");
-  await prisma.productVariant.deleteMany({ where: { id: variantId, productId } });
+  const purchaseOrders = await prisma.purchaseOrderItem.count({ where: { variantId } });
+  const stocktakes = await prisma.stocktakeItem.count({ where: { variantId } });
+  if (count || orders || purchaseOrders || stocktakes) {
+    throw Errors.conflict("این تنوع در سفارش‌ها، سبدها یا اسناد انبار استفاده شده است");
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.productVariant.deleteMany({ where: { id: variantId, productId } });
+    await recalcProductStock(tx, productId);
+  });
 }
 
 export async function addProductImage(productId: string, url: string, altText?: string, color?: string, variantId?: string) {
@@ -363,9 +405,14 @@ export async function deleteProductImage(productId: string, imageId: string) {
 }
 
 export async function adjustStock(input: {
-  variantId: string; quantity: number; reason: "RESTOCK" | "ADJUSTMENT" | "RETURN"; note?: string; userId?: string;
+  variantId: string;
+  quantity: number;
+  reason: Extract<InventoryReason, "RESTOCK" | "ADJUSTMENT" | "RETURN" | "DAMAGE">;
+  note?: string;
+  userId?: string;
 }) {
   if (input.quantity === 0) throw Errors.badRequest("مقدار تغییر موجودی نمیتواند صفر باشد");
+  if (input.reason === "DAMAGE" && input.quantity > 0) throw Errors.badRequest("برای ثبت ضایعات، موجودی باید کاهش یابد");
   await prisma.$transaction(async (tx) => {
     const variant = await tx.productVariant.findUnique({
       where: { id: input.variantId },
@@ -374,12 +421,18 @@ export async function adjustStock(input: {
     if (!variant) throw Errors.notFound("تنوع یافت نشد");
     const next = variant.stock + input.quantity;
     if (next < 0) throw Errors.conflict("موجودی نمیتواند منفی شود");
-    await tx.productVariant.update({ where: { id: input.variantId }, data: { stock: next } });
-    await tx.inventoryMovement.create({
-      data: {
-        variantId: input.variantId, quantity: input.quantity, reason: input.reason,
-        note: input.note ?? null, userId: input.userId ?? null,
-      },
+    const updated = await tx.productVariant.updateMany({
+      where: { id: input.variantId, stock: variant.stock },
+      data: { stock: next },
+    });
+    if (!updated.count) throw Errors.conflict("موجودی هم‌زمان تغییر کرده است؛ صفحه را تازه کنید");
+    await recordInventoryMovement(tx, {
+      variantId: input.variantId,
+      quantity: input.quantity,
+      reason: input.reason,
+      note: input.note ?? null,
+      userId: input.userId ?? null,
+      referenceType: "ADJUSTMENT",
     });
     await recalcProductStock(tx, variant.productId);
   });

@@ -12,9 +12,10 @@ const DAY = 24 * 60 * 60 * 1000;
 export async function getAdminNotifications(permissions: readonly string[]): Promise<AdminNotification[]> {
   const canOrders = permissions.includes("orders.view") || permissions.includes("order.read");
   const canProducts = permissions.includes("products.view") || permissions.includes("product.read");
+  const canInventory = permissions.includes("inventory.manage") || permissions.includes("inventory.write");
   const canSystem = permissions.includes("system.view");
 
-  const [newOrders, pendingReturns, lowStock, failedPayments, failedJobs] = await Promise.all([
+  const [newOrders, pendingReturns, lowStock, overduePurchaseOrders, failedPayments, failedJobs] = await Promise.all([
     canOrders
       ? prisma.order.findMany({
           where: { createdAt: { gte: new Date(Date.now() - 7 * DAY) } },
@@ -28,6 +29,14 @@ export async function getAdminNotifications(permissions: readonly string[]): Pro
       : [],
     canProducts
       ? lowStockVariants().then((rows) => rows.slice(0, 3))
+      : [],
+    canInventory
+      ? prisma.purchaseOrder.findMany({
+          where: { status: { in: ["ORDERED", "PARTIAL"] }, expectedAt: { lt: new Date() } },
+          orderBy: { expectedAt: "asc" },
+          take: 3,
+          select: { id: true, number: true, expectedAt: true, supplier: { select: { name: true } } },
+        })
       : [],
     canSystem
       ? prisma.payment.findMany({ where: { status: "FAILED", createdAt: { gte: new Date(Date.now() - DAY) } }, take: 3, orderBy: { createdAt: "desc" }, select: { id: true, orderId: true, createdAt: true, failureReason: true } })
@@ -64,8 +73,18 @@ export async function getAdminNotifications(permissions: readonly string[]): Pro
       id: `stock-${variant.id}`,
       title: `موجودی کم: ${variant.product.name}`,
       description: `${variant.sku} — ${variant.stock} عدد باقی مانده`,
-      href: `/admin/products/${variant.product.id}`,
+      href: `/admin/inventory?stock=low&q=${encodeURIComponent(variant.sku)}`,
       tone: variant.stock === 0 ? "danger" : "warning",
+    });
+  }
+  for (const order of overduePurchaseOrders) {
+    notifications.push({
+      id: `purchase-order-${order.id}`,
+      title: `سفارش خرید ${order.number} عقب افتاده`,
+      description: `${order.supplier.name} — تاریخ تحویل ${formatJalali(order.expectedAt ?? new Date())}`,
+      href: `/admin/inventory/purchase-orders/${order.id}`,
+      tone: "warning",
+      createdAt: order.expectedAt?.toISOString(),
     });
   }
   for (const payment of failedPayments) {

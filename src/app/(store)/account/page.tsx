@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Heart, MapPin, Package } from "lucide-react";
+import { Heart, MapPin, Package, RotateCcw } from "lucide-react";
 import { requirePageUser } from "@/lib/auth/session";
 import { getProfile, listAddresses, listUserOrders, listWishlist } from "@/services/account";
 import { ProfileForm } from "@/components/profile-form";
 import { SectionTitle } from "@/components/ui/display";
+import { ButtonLink } from "@/components/ui/button";
 import { formatJalali, formatNumber } from "@/lib/persian";
 import { orderStatusLabels } from "@/lib/labels";
 
@@ -69,6 +70,28 @@ export default async function AccountPage() {
             هنوز سفارشی ثبت نکرده‌اید. <Link href="/shop" className="text-primary underline">شروع خرید</Link>
           </div>
         )}
+      </section>
+
+      <section>
+        <SectionTitle title="مرجوعی و بازگشت" subtitle="اگر کالای خریداری‌شده را می‌خواهید برگردانید، از اینجا شروع کنید." />
+        <div className="surface-card flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <RotateCcw className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">درخواست بازگشت کالا</p>
+              <p className="mt-1 max-w-xl text-xs leading-6 text-ink/55">
+                سفارش ارسال‌شده یا تحویل‌شده را انتخاب کنید، اقلام و تعداد را مشخص کنید و درخواست را ثبت کنید. وضعیت بررسی
+                در همین بخش قابل پیگیری است.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <ButtonLink href="/account/returns/new" size="sm">ثبت درخواست مرجوعی</ButtonLink>
+            <ButtonLink href="/account/returns" variant="outline" size="sm">پیگیری درخواست‌ها</ButtonLink>
+          </div>
+        </div>
       </section>
     </div>
   );

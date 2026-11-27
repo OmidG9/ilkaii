@@ -13,7 +13,7 @@ export const PATCH = route(async (request: NextRequest, context) => {
   const user = await requirePermission("inventory.write");
   const { id, variantId } = await (context as Context).params;
   const input = await parseBody(request, variantSchema);
-  const variant = await upsertVariant(id, input, variantId);
+  const variant = await upsertVariant(id, input, variantId, user.id);
   await audit({ actorId: user.id, action: "variant.updated", entity: "ProductVariant", entityId: variantId, metadata: { stock: input.stock } });
   return ok({ id: variant.id });
 });

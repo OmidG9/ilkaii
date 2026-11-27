@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CheckCircle2, ClipboardCheck, RotateCcw, Undo2 } from "lucide-react";
 import { getSiteConfig } from "@/config/site";
 import { LegalPage } from "@/components/legal-page";
+import { ButtonLink } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export default async function ReturnsPage() {
           <p className="text-[10px] tracking-[0.22em] text-ink/35">WITHIN</p>
           <p className="mt-2 text-3xl font-semibold text-primary">۷ روز</p>
           <p className="mt-1 text-xs leading-6 text-ink/50">از زمان تحویل، برای ثبت درخواست بازگشت.</p>
-          <Link href="/account/orders" className="mt-4 inline-flex text-xs font-medium text-primary hover:text-hover">ثبت درخواست از سفارش‌ها</Link>
+          <Link href="/account/returns/new" className="mt-4 inline-flex text-xs font-medium text-primary hover:text-hover">ثبت درخواست مرجوعی</Link>
         </div>
       }
     >
@@ -84,6 +85,14 @@ export default async function ReturnsPage() {
       <p className="rounded-2xl bg-canvas px-4 py-3 text-xs leading-6 text-ink/45">
         برای کالاهای حراج و آخرین موجودی، شرایط بازگشت یکسان است؛ اما در صورت تعویض، موجودی سایز دیگر تضمین نمی‌شود. در صورت ایراد تولیدی، هزینهٔ ارسال با فروشگاه است.
       </p>
+
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/20 bg-primary/[0.03] p-5">
+        <p className="min-w-0 flex-1 text-sm leading-7 text-ink/65">
+          اگر سفارش شما ارسال یا تحویل شده است، می‌توانید همین حالا درخواست مرجوعی ثبت کنید.
+        </p>
+        <ButtonLink href="/account/returns/new">ثبت درخواست مرجوعی</ButtonLink>
+        <ButtonLink href="/account/orders" variant="outline">سفارش‌های من</ButtonLink>
+      </div>
     </LegalPage>
   );
 }

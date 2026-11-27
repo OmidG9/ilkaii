@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkoutSchema, productQuerySchema, returnSchema } from "../src/lib/validation";
+import { checkoutSchema, productQuerySchema, refundSchema, returnSchema } from "../src/lib/validation";
 import { calculateCoupon, orderTotals, shippingCost, type ShippingRates } from "../src/lib/money";
 
 /**
@@ -29,7 +29,7 @@ test("checkout contract accepts every supported shipping method and gateway", ()
       const parsed = checkoutSchema.safeParse({ address, shippingMethod, paymentMethod: "ONLINE", paymentGateway });
       assert.equal(parsed.success, true, `${shippingMethod}/${paymentGateway}`);
     }
-    assert.equal(checkoutSchema.safeParse({ address, shippingMethod, paymentMethod: "COD" }).success, true);
+    assert.equal(checkoutSchema.safeParse({ address, shippingMethod, paymentMethod: "COD" }).success, false);
   }
 });
 
@@ -74,21 +74,21 @@ test("totals contract never produces a negative total", () => {
 
 test("shipping contract handles new and legacy methods", () => {
   const rates: ShippingRates = {
-    flat: 130_000,
-    alopeyk: 90_000,
-    pishtaz: 45_000,
-    tipax: 85_000,
-    postal: 45_000,
-    courier: 85_000,
+    flat: 180_000,
+    alopeyk: 0,
+    pishtaz: 95_000,
+    tipax: 175_000,
+    postal: 95_000,
+    courier: 175_000,
     pickup: 0,
     freeThreshold: 1_500_000,
   };
-  assert.equal(shippingCost(rates, "FLAT", 100), 130_000);
-  assert.equal(shippingCost(rates, "ALOPEYK", 100), 90_000);
-  assert.equal(shippingCost(rates, "PISHTAZ", 100), 45_000);
-  assert.equal(shippingCost(rates, "TIPAX", 100), 85_000);
-  assert.equal(shippingCost(rates, "POSTAL", 100), 45_000);
-  assert.equal(shippingCost(rates, "COURIER", 100), 85_000);
+  assert.equal(shippingCost(rates, "FLAT", 100), 180_000);
+  assert.equal(shippingCost(rates, "ALOPEYK", 100), 0);
+  assert.equal(shippingCost(rates, "PISHTAZ", 100), 95_000);
+  assert.equal(shippingCost(rates, "TIPAX", 100), 175_000);
+  assert.equal(shippingCost(rates, "POSTAL", 100), 95_000);
+  assert.equal(shippingCost(rates, "COURIER", 100), 175_000);
   assert.equal(shippingCost(rates, "PICKUP", 100), 0);
   assert.equal(shippingCost(rates, "PISHTAZ", 1_500_000), 0);
 });
@@ -102,6 +102,15 @@ test("return contract requires line items and bounded quantities", () => {
   assert.equal(returnSchema.safeParse(valid).success, true);
   assert.equal(returnSchema.safeParse({ ...valid, items: [] }).success, false);
   assert.equal(returnSchema.safeParse({ ...valid, items: [{ orderItemId: "clx1234567891", quantity: 1001 }] }).success, false);
+});
+
+test("refund contract requires a positive integer amount", () => {
+  const parsed = refundSchema.parse({ amount: 100_000, reference: "BANK-1" });
+  assert.equal(parsed.status, "COMPLETED");
+  assert.equal(refundSchema.safeParse({ amount: 0 }).success, false);
+  assert.equal(refundSchema.safeParse({ amount: -1 }).success, false);
+  assert.equal(refundSchema.safeParse({ amount: 1.5 }).success, false);
+  assert.equal(refundSchema.safeParse({ amount: 100_000, status: "UNKNOWN" }).success, false);
 });
 
 test("query contract accepts Persian digits and separators", () => {
