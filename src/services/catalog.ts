@@ -158,6 +158,51 @@ export async function getProductBySlug(slug: string) {
   };
 }
 
+export async function listBrandProducts(brandId: string, limit = 24): Promise<ProductCard[]> {
+  const rows = await prisma.product.findMany({
+    where: { brandId, isDeleted: false, status: "ACTIVE" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: cardSelect,
+  });
+  return rows.map(toCard);
+}
+
+export async function listSaleProducts(limit = 12): Promise<ProductCard[]> {
+  const rows = await prisma.product.findMany({
+    where: { salePrice: { not: null }, isDeleted: false, status: "ACTIVE" },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: cardSelect,
+  });
+  return rows.map(toCard).filter((product) => product.discount > 0);
+}
+
+export async function getSaleOverview(limit = 12) {
+  const [rows, priced] = await Promise.all([
+    prisma.product.findMany({
+      where: { salePrice: { not: null }, isDeleted: false, status: "ACTIVE" },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      select: cardSelect,
+    }),
+    prisma.product.findMany({
+      where: { salePrice: { not: null }, isDeleted: false, status: "ACTIVE" },
+      select: { basePrice: true, salePrice: true },
+    }),
+  ]);
+  const products = rows.map(toCard).filter((product) => product.discount > 0);
+  const discounts = priced
+    .map((product) => discountPercent(toToman(product.basePrice), toToman(product.salePrice ?? product.basePrice)))
+    .filter((value) => value > 0);
+  return {
+    products,
+    count: discounts.length,
+    bestDiscount: discounts.length ? Math.max(...discounts) : 0,
+    averageDiscount: discounts.length ? Math.round(discounts.reduce((sum, value) => sum + value, 0) / discounts.length) : 0,
+  };
+}
+
 export async function listProductsByIds(ids: string[], limit = 12): Promise<ProductCard[]> {
   if (!ids.length) return [];
   const rows = await prisma.product.findMany({
@@ -166,6 +211,23 @@ export async function listProductsByIds(ids: string[], limit = 12): Promise<Prod
   });
   const byId = new Map(rows.map((row) => [row.id, row]));
   return ids.map((id) => byId.get(id)).filter((row): row is NonNullable<typeof row> => Boolean(row)).map(toCard);
+}
+
+/** Size/color filter options derived from the live catalog, not hardcoded. */
+export async function getCatalogFacets() {
+  const where = {
+    isAvailable: true,
+    stock: { gt: 0 },
+    product: { isDeleted: false, status: "ACTIVE" as const },
+  };
+  const [sizes, colors] = await Promise.all([
+    prisma.productVariant.findMany({ where, distinct: ["size"], select: { size: true }, orderBy: { size: "asc" } }),
+    prisma.productVariant.findMany({ where, distinct: ["color"], select: { color: true }, orderBy: { color: "asc" } }),
+  ]);
+  return {
+    sizes: sizes.map((row) => row.size),
+    colors: colors.map((row) => row.color).filter((color): color is string => Boolean(color)),
+  };
 }
 
 export async function getCategories() {  return prisma.category.findMany({

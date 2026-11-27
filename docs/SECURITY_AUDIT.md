@@ -92,6 +92,10 @@ navigation item is never an authorization mechanism.
   SVG and AVIF **input** are rejected.
 - Remote image hosts are an explicit allowlist (`remotePatterns`), default
   `res.cloudinary.com` plus `NEXT_PUBLIC_IMAGE_HOSTS`; SVG optimization is off.
+- Local uploads are written to `LOCAL_UPLOAD_DIR` (default `public/uploads`) and
+  served by `/uploads/[...path]`; path traversal, symlinked paths and
+  non-image extensions are rejected. Production must use Cloudinary or a
+  persistent writable volume; a read-only filesystem returns a clear 503.
 
 ## 6. HTTP headers
 
@@ -103,51 +107,73 @@ Set centrally in `src/middleware.ts` for every non-static route:
 - `Permissions-Policy` disabling camera/mic/geolocation/payment
 - `Cross-Origin-Opener-Policy: same-origin`
 - `Strict-Transport-Security` in production
-- CSP: `default-src 'self'`, inline scripts/styles allowed (Next.js + theme),
-  `img-src` limited to self/data/blob/https, `object-src 'none'`.
+- CSP in production: `default-src 'self'`, **per-request nonce** for scripts with
+  `'strict-dynamic'` and no `unsafe-inline`; the nonce is applied to Next's
+  bootstrap scripts, the theme bootstrap and JSON-LD. `style-src` still allows
+  inline styles (Tailwind/theme), `img-src` is limited to self/data/blob/https,
+  `object-src 'none'`. `form-action` also permits Behpardakht's bank POST.
+- Development uses a relaxed inline/eval CSP because the Next dev overlay cannot
+  be nonced; production is the enforced policy.
 
 `poweredByHeader` is disabled.
 
 ## 7. Rate limiting
 
-Process-local sliding windows cover OTP request/verify. The bucket map is
-bounded (10k entries, expired entries pruned) to prevent memory exhaustion.
+OTP request/verify, analytics ingestion, consent and newsletter endpoints use a
+sliding-window limiter:
 
-**Limitation:** the limiter is per Node process. Multi-instance deployments
-must swap `checkRateLimit` for Redis/DB-backed storage.
+- With `REDIS_URL`, counters are shared across instances using an atomic
+  `INCR`+`PEXPIRE` Lua script. Keys are SHA-256 hashes, so phone numbers and IPs
+  never appear in Redis.
+- Without Redis, a bounded in-process fallback (10k entries, expired pruning)
+  keeps single-instance and development environments working.
+- If Redis errors, the limiter degrades to the local fallback for 30 seconds
+  and logs the outage rather than failing logins.
+- Redis is required for correct multi-instance enforcement; the process-local
+  fallback is explicitly single-instance only.
 
 ## 8. Dependency audit
 
-`npm audit --omit=dev` after `npm audit fix`:
+Current `npm audit --omit=dev` posture:
 
 | Package | Severity | Status |
 | --- | --- | --- |
-| next (15.5.x) | critical/high advisories | Accepted; see mitigations |
-| sharp | high (libvips/libheif/librsvg CVEs) | Accepted; admin-only uploads, re-encoded output |
-| zod (3.x) | high (memory on oversized collections) | Accepted; 64 KB body cap, small arrays |
-| postcss | high (source-map handling) | Build-time only |
+| sharp | high (libvips/libheif/librsvg CVEs) | **Fixed**: upgraded to 0.35.5 and verified |
+| zod (3.x) | high (memory on oversized collections) | Open; requires zod 4.6.7+ (major) |
+| postcss (bundled in Next 15) | high (source-map handling) | Open; fixed in Next 16.4.6+ (major) |
 
-Mitigations for the Next.js advisories:
+Mitigations until the majors land:
 
+- 64 KB request-body cap and bounded array/collection schemas reduce the zod
+  DoS surface.
+- PostCSS is a build-time tool in this app; Next's bundled copy is not exposed
+  to user-controlled CSS/source maps.
 - The application **does not use Server Actions** (all mutations are explicit
   route handlers with `assertSameOrigin` + RBAC).
 - Image optimization only serves allowlisted remote hosts and re-encoded local
   uploads; SVG/AVIF input is rejected.
-- `NEXT_PUBLIC_BASE_URL` should be fixed so rewrite destinations are not
+- `NEXT_PUBLIC_BASE_URL` must be fixed so rewrite destinations are not
   attacker-controlled.
 
-**Recommended before launch:** schedule a Next.js major upgrade (16.x) and a
-zod 4 migration in a dedicated change set, then re-run `npm audit`, the test
-suite and a full build.
+`tests/regression.test.ts` is the contract gate for the zod 4 / Next 16 work and
+`docs/UPGRADE_PLAN.md` lists the exact sequence. Do not run `npm audit fix
+--force` on the release branch.
 
 ## 9. Known limitations / operator actions
 
-1. Run `prisma migrate deploy` against a real MySQL instance and execute the
-   integration/E2E suites (no database was reachable in this environment).
-2. Configure a production SMS provider and payment merchant ID; verify callback
-   signatures with the real gateway.
-3. Move rate limiting to shared storage for multi-instance deployments.
-4. Replace `console`/structured logger sink with your log platform if required.
-5. Add a WAF/edge rate limit for `/api/auth/*` and `/api/checkout`.
-6. Rotate `SESSION_SECRET` on incident; all sessions become invalid because the
+1. **Gateway refunds are not automated.** Cancelling/refunding a paid order
+   updates the local ledger but does not call the gateway's refund API. A
+   reconciliation/refund process is required before launch.
+2. Configure a production SMS provider and payment merchant ID; verify callbacks
+   with the real gateway (Zarinpal, Zibal or Behpardakht sandbox).
+3. Set `REDIS_URL` for multi-instance rate limiting.
+4. Use a persistent volume via `LOCAL_UPLOAD_DIR` or Cloudinary; serverless
+   local uploads are rejected with a clear error.
+5. Schedule `/api/cron/maintenance` hourly to expire unpaid orders and apply
+   analytics retention.
+6. Replace `console`/structured logger sink with your log platform if required.
+7. Add a WAF/edge rate limit for `/api/auth/*` and `/api/checkout`.
+8. Rotate `SESSION_SECRET` on incident; all sessions become invalid because the
    token hash is stored server-side.
+9. Next.js 16 / zod 4 upgrades are planned in `docs/UPGRADE_PLAN.md`; the
+   sharp 0.35.5 upgrade is already applied.

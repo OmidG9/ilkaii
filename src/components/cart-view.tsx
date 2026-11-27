@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Minus, Plus, Trash2 } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { useCart } from "@/components/cart-provider";
 import { ButtonLink } from "@/components/ui/button";
 import { Alert, Card } from "@/components/ui/display";
@@ -38,16 +38,25 @@ export function CartView({ initialCart, shipping, freeThreshold }: {
 
   if (!view.items.length) {
     return (
-      <Card className="p-8 text-center">
-        <h1 className="text-xl font-semibold">سبد خرید خالی است</h1>
-        <p className="mt-2 text-sm text-ink/60">برای شروع، محصولی را از فروشگاه انتخاب کنید.</p>
-        <ButtonLink href="/shop" className="mt-6">رفتن به فروشگاه</ButtonLink>
+      <Card className="relative overflow-hidden p-10 text-center">
+        <span aria-hidden className="pointer-events-none absolute -left-4 -top-6 font-display text-[150px] leading-none text-primary/[0.06]">0</span>
+        <div className="relative mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <ShoppingBag className="h-7 w-7" />
+        </div>
+        <h1 className="relative mt-5 text-xl font-semibold">سبد خرید خالی است</h1>
+        <p className="relative mt-2 text-sm text-ink/55">از تازه‌ها شروع کنید یا کالکشن‌ها را ببینید.</p>
+        <div className="relative mt-6 flex flex-wrap justify-center gap-3">
+          <ButtonLink href="/shop">رفتن به فروشگاه</ButtonLink>
+          <ButtonLink href="/new-arrivals" variant="outline">دیدن تازه‌ها</ButtonLink>
+        </div>
       </Card>
     );
   }
 
   const remaining = Math.max(0, freeThreshold - view.subtotal);
   const total = view.subtotal + shipping;
+  const progress = freeThreshold > 0 ? Math.min(100, Math.round((view.subtotal / freeThreshold) * 100)) : 100;
+  const hasUnavailable = view.items.some((item) => !item.available);
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -112,6 +121,15 @@ export function CartView({ initialCart, shipping, freeThreshold }: {
             <dd dir="ltr" className="text-primary">{formatToman(total)}</dd>
           </div>
         </dl>
+        <div className="mt-5">
+          <div className="flex items-center justify-between text-[10px] text-ink/40">
+            <span>پیشرفت ارسال رایگان</span>
+            <span>{Math.min(100, progress)}٪</span>
+          </div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line/70">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
         {remaining > 0 ? (
           <p className="mt-4 rounded-xl bg-secondary/10 p-3 text-xs text-ink/65">
             با خرید {formatToman(remaining)} بیشتر، ارسال رایگان شوید.
@@ -119,7 +137,11 @@ export function CartView({ initialCart, shipping, freeThreshold }: {
         ) : (
           <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800">ارسال سفارش شما رایگان است.</p>
         )}
-        <ButtonLink href="/checkout" size="lg" className="mt-6 w-full">ادامه به پرداخت</ButtonLink>
+        {hasUnavailable ? (
+          <div className="mt-6"><Alert tone="error">برای ادامه، ابتدا تعداد یا محصولات ناموجود را اصلاح کنید.</Alert></div>
+        ) : (
+          <ButtonLink href="/checkout" size="lg" className="mt-6 w-full">ادامه به پرداخت</ButtonLink>
+        )}
       </Card>
     </div>
   );

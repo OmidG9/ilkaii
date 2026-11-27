@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "@/styles/globals.css";
 import { getSiteConfig } from "@/config/site";
 import { themeVariables } from "@/config/theme";
@@ -30,7 +31,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {  const site = await getSiteConfig();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const site = await getSiteConfig();
+  // The nonce is only part of the production CSP. Applying it during dev causes
+  // React hydration noise because dev CSP already allows inline scripts.
+  const nonce = process.env.NODE_ENV === "production"
+    ? (await headers()).get("x-nonce") ?? undefined
+    : undefined;
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
   const structuredData = {
     "@context": "https://schema.org",
@@ -58,6 +65,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="fa" dir="rtl">
       <head>
         <script
+          nonce={nonce}
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem("ilkaii_theme");if(t==="dark"){document.documentElement.dataset.theme="dark"}}catch(e){}`,
           }}

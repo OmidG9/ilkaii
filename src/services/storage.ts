@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { getServerEnv } from "@/lib/env";
 import { Errors } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 
 export interface StoredImage {
   url: string;
@@ -15,12 +16,29 @@ function safeName(original: string) {
   return `${randomUUID()}-${base || "image"}.webp`;
 }
 
-/** Local driver writes into public/uploads (serve via reverse proxy in production). */
+/**
+ * Local uploads must live on a writable persistent volume in production. The
+ * default stays inside `public/uploads` for development, while deployments can
+ * point LOCAL_UPLOAD_DIR at a mounted volume outside the build directory.
+ */
+export function localUploadDirectory(): string {
+  const configured = process.env.LOCAL_UPLOAD_DIR?.trim();
+  return configured ? path.resolve(configured) : path.join(process.cwd(), "public", "uploads");
+}
+
+/** Local driver writes into the configured directory and is served by /uploads. */
 async function storeLocal(data: Buffer, originalName: string): Promise<StoredImage> {
   const name = safeName(originalName);
-  const directory = path.join(process.cwd(), "public", "uploads");
-  await mkdir(directory, { recursive: true });
-  await writeFile(path.join(directory, name), data, { flag: "wx" });
+  const directory = localUploadDirectory();
+  try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(path.join(directory, name), data, { flag: "wx" });
+  } catch (error) {
+    logger.error("local_upload_failed", { directory, error: error instanceof Error ? error.message : String(error) });
+    throw Errors.unavailable(
+      "ذخیره تصویر ممکن نشد. برای محیط production از Cloudinary یا یک volume پایدار با LOCAL_UPLOAD_DIR استفاده کنید.",
+    );
+  }
   return {
     url: `/uploads/${name}`,
     provider: "local",

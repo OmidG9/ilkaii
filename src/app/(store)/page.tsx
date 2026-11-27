@@ -1,14 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, PackageCheck, RotateCcw, ShieldCheck, Truck } from "lucide-react";
+import { ArrowLeft, PackageCheck, Quote, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { getHomeData } from "@/services/catalog";
-import { getActiveBanners, getActiveHomepageSections } from "@/services/cms";
+import { getActiveBanners, getActiveHomepageSections, listPublishedPosts } from "@/services/cms";
 import { getSiteConfig } from "@/config/site";
+import { collectionForCategory } from "@/config/editorial";
 import { ProductGrid } from "@/components/product-grid";
 import { HomepageSections } from "@/components/homepage-sections";
 import { ButtonLink } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/display";
+import { EditorialImageFrame, Marquee, themeBackground } from "@/components/editorial";
 import { formatNumber, formatJalali } from "@/lib/persian";
+import { formatToman } from "@/lib/money";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +33,12 @@ function BannerStrip({ banners }: { banners: Array<{ id: string; title: string; 
 }
 
 export default async function HomePage() {
-  const [{ featured, arrivals, bestSellers, categories }, site, sections, banners] = await Promise.all([
+  const [{ featured, arrivals, bestSellers, categories }, site, sections, banners, posts] = await Promise.all([
     getHomeData(),
     getSiteConfig(),
     getActiveHomepageSections(),
     getActiveBanners("HOME"),
+    listPublishedPosts().catch(() => []),
   ]);
 
   if (sections.length) {
@@ -72,7 +76,7 @@ export default async function HomePage() {
                 <ButtonLink href="/shop" size="lg">مشاهده مجموعه</ButtonLink>
                 <ButtonLink href="/shop?newArrival=true" size="lg" variant="outline">جدیدترینها</ButtonLink>
               </div>
-              <p className="text-xs text-ink/50">ارسال رایگان سفارشهای بالای ۱٫۵ میلیون تومان</p>
+              <p className="text-xs text-ink/50">ارسال رایگان سفارش‌های بالای {formatToman(site.shipping.freeThreshold)}</p>
             </div>
             <div className="relative hidden h-[420px] overflow-hidden rounded-luxury bg-line/40 lg:block">
               {featured[0]?.image ? (
@@ -96,6 +100,11 @@ export default async function HomePage() {
 
       <BannerStrip banners={banners.map((banner) => ({ id: banner.id, title: banner.title, image: banner.image, href: banner.href }))} />
 
+      <Marquee
+        className="mt-8"
+        items={["ILKAII / SEASON ۱۴۰۴", "DESIGNED IN IRAN", "SMALL BATCH", "کمتر بخرید، بهتر بپوشید", "MADE TO BE WORN"]}
+      />
+
       <section aria-label="اظهارات اعتماد" className="container-luxury mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
           { icon: Truck, title: "ارسال سراسر کشور", text: "پست و پیک با پیگیری" },
@@ -116,19 +125,75 @@ export default async function HomePage() {
       <section className="container-luxury mt-20">
         <SectionTitle title="دستهبندیها" subtitle="مسیرتان را برای پیدا کردن استایل مورد نظر کوتاه کنید" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/category/${category.slug}`}
-              className="surface-card group flex min-h-40 flex-col justify-between p-5 transition-transform hover:-translate-y-1"
-            >
-              <span className="text-sm font-semibold">{category.name}</span>
-              <span className="text-xs text-ink/50">
-                {formatNumber(category._count.products)} محصول
-              </span>
-              <ArrowLeft className="h-5 w-5 text-primary transition-transform group-hover:-translate-x-1" />
-            </Link>
-          ))}
+          {categories.map((category) => {
+            const collection = collectionForCategory(category.slug);
+            if (!collection) {
+              return (
+                <Link
+                  key={category.id}
+                  href={`/category/${category.slug}`}
+                  className="surface-card group flex min-h-40 flex-col justify-between p-5 transition-transform hover:-translate-y-1"
+                >
+                  <span className="text-sm font-semibold">{category.name}</span>
+                  <span className="text-xs text-ink/50">{formatNumber(category._count.products)} محصول</span>
+                  <ArrowLeft className="h-5 w-5 text-primary transition-transform group-hover:-translate-x-1" />
+                </Link>
+              );
+            }
+            return (
+              <Link
+                key={category.id}
+                href={`/category/${category.slug}`}
+                className="group relative flex min-h-44 flex-col justify-between overflow-hidden rounded-2xl p-5 transition-transform hover:-translate-y-1"
+                style={themeBackground(collection.theme)}
+              >
+                <span aria-hidden className="pointer-events-none absolute -bottom-4 left-1 font-display text-7xl leading-none opacity-10">{collection.index}</span>
+                <span className="relative flex items-start justify-between gap-2">
+                  <span className="text-[9px] tracking-[0.2em] opacity-50">{collection.englishTitle.toUpperCase()}</span>
+                  <ArrowLeft className="h-4 w-4 opacity-50 transition-transform group-hover:-translate-x-1" />
+                </span>
+                <span className="relative">
+                  <span className="block text-sm font-semibold">{category.name}</span>
+                  <span className="mt-1 block text-[10px] opacity-55">{formatNumber(category._count.products)} محصول</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="container-luxury mt-20">
+        <div className="grid overflow-hidden rounded-[36px] border border-line bg-surface lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="relative min-h-[380px] lg:min-h-[460px]">
+            <EditorialImageFrame
+              src={arrivals[1]?.image ?? featured[0]?.image}
+              alt={arrivals[1]?.name ?? "لوک‌بوک ilkaii"}
+              theme={{ from: "#DFD2C4", to: "#9C8370", accent: "#4A382C", ink: "dark" }}
+              className="absolute inset-0 h-full w-full rounded-none border-0"
+              sizes="(max-width: 1024px) 100vw, 50vw"
+            />
+            <div className="absolute bottom-6 right-6 left-6 rounded-2xl border border-white/20 bg-black/25 p-5 text-white backdrop-blur">
+              <Quote className="h-4 w-4 text-white/50" />
+              <p className="mt-2 font-display text-lg italic leading-8 sm:text-xl">استایل واقعی، در موقعیت‌های واقعی.</p>
+              <p className="mt-1 text-[10px] text-white/50">لوک‌بوک پاییز و زمستان ۱۴۰۴</p>
+            </div>
+          </div>
+          <div className="flex flex-col justify-center p-8 sm:p-12">
+            <p className="eyebrow">THE LOOKBOOK / ۰۴</p>
+            <h2 className="mt-4 text-balance text-3xl font-semibold sm:text-4xl">چهار قاب از یک روز واقعی</h2>
+            <p className="mt-4 max-w-lg text-sm leading-8 text-ink/55">
+              صبح آرام، گذر از شهر، تمرین آزادی و شبِ جین. لوک‌بوک جدید، لباس‌ها را در زندگی روزمره نشان می‌دهد؛ نه روی سن.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {["صبح آرام", "لایه‌های شهری", "در حرکت", "جین و شب"].map((chapter) => (
+                <span key={chapter} className="rounded-full border border-line bg-canvas px-3 py-1.5 text-[10px] text-ink/50">{chapter}</span>
+              ))}
+            </div>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <ButtonLink href="/lookbook">ورق بزنید</ButtonLink>
+              <ButtonLink href="/new-arrivals" variant="outline">خرید از لوک‌بوک</ButtonLink>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -159,6 +224,45 @@ export default async function HomePage() {
       <section className="container-luxury mt-20">
         <SectionTitle title="پرفروشها" subtitle="محبوبترینها میان مشتریان" href="/shop?sort=popular" linkLabel="مشاهده همه" />
         <ProductGrid products={bestSellers} />
+      </section>
+
+      {posts.length ? (
+        <section className="container-luxury mt-20">
+          <SectionTitle title="از ژورنال" subtitle="دربارهٔ پارچه، فرم و انتخاب‌های آگاهانه" href="/blog" linkLabel="همهٔ مقاله‌ها" />
+          <div className="grid gap-5 sm:grid-cols-3">
+            {posts.slice(0, 3).map((post) => (
+              <Link key={post.slug} href={`/blog/${post.slug}`} className="group overflow-hidden rounded-luxury border border-line bg-surface">
+                <div
+                  role="img"
+                  aria-label={post.title}
+                  className="aspect-[16/10] w-full bg-gradient-to-br from-primary/20 to-secondary/35 bg-cover bg-center transition-transform duration-500 group-hover:scale-[1.02]"
+                  style={post.coverImage ? { backgroundImage: `url(${post.coverImage})` } : undefined}
+                />
+                <div className="p-5">
+                  <p className="text-[10px] text-ink/40">{post.publishedAt ? formatJalali(post.publishedAt) : ""} — {post.readingMinutes} دقیقه</p>
+                  <h3 className="mt-2 line-clamp-2 text-base font-semibold group-hover:text-primary">{post.title}</h3>
+                  {post.excerpt ? <p className="mt-2 line-clamp-2 text-xs leading-6 text-ink/50">{post.excerpt}</p> : null}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="container-luxury mt-20">
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            { href: "/size-guide", title: "سایز درست را پیدا کنید", text: "جدول اندازه و راهنمای انتخاب" },
+            { href: "/policies/shipping", title: "ارسال و تحویل", text: "زمان، هزینه و پیگیری مرسوله" },
+            { href: "/policies/returns", title: "بازگشت آسان", text: "۷ روز فرصت، شرایط روشن" },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} className="group rounded-2xl border border-line bg-surface p-5 transition-colors hover:border-primary">
+              <p className="text-sm font-semibold group-hover:text-primary">{item.title}</p>
+              <p className="mt-1 text-xs text-ink/45">{item.text}</p>
+              <ArrowLeft className="mt-4 h-4 w-4 text-primary/50 transition-transform group-hover:-translate-x-1" />
+            </Link>
+          ))}
+        </div>
       </section>
 
       <section className="container-luxury mt-20">

@@ -35,7 +35,12 @@ export function ProfileForm({ profile }: { profile: Profile }) {
       const response = await fetch("/api/account", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ...form, email: form.email || null }),
+        body: JSON.stringify({
+          ...form,
+          firstName: form.firstName.trim() || null,
+          lastName: form.lastName.trim() || null,
+          email: form.email.trim() || null,
+        }),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body?.error?.message ?? "ذخیره ناموفق بود");

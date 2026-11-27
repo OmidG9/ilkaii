@@ -32,8 +32,15 @@ export interface SiteConfig {
     address: string;
   };
   shipping: {
+    flat: number;
+    alopeyk: number;
+    pishtaz: number;
+    tipax: number;
+    /** Legacy setting retained for historical orders. */
     postal: number;
+    /** Legacy setting retained for historical orders. */
     courier: number;
+    /** Legacy setting retained for historical orders. */
     pickup: number;
     freeThreshold: number;
   };
@@ -50,6 +57,10 @@ export interface SiteConfig {
     returnPolicy: string;
     privacyPolicy: string;
     terms: string;
+  };
+  store: {
+    orderPrefix: string;
+    invoiceFooter: string;
   };
 }
 
@@ -79,6 +90,10 @@ export const defaultSiteConfig: SiteConfig = {
     address: "تهران، ایران",
   },
   shipping: {
+    flat: 130000,
+    alopeyk: 90000,
+    pishtaz: 45000,
+    tipax: 85000,
     postal: 45000,
     courier: 85000,
     pickup: 0,
@@ -97,6 +112,10 @@ export const defaultSiteConfig: SiteConfig = {
     returnPolicy: "امکان بازگشت کالا تا ۷ روز پس از تحویل، در صورت عدم استفاده و دارای برچسب اصلی وجود دارد.",
     privacyPolicy: "اطلاعات شخصی شما تنها برای پردازش سفارشها نگهداری میشود و در اختیار اشخاص ثالث قرار داده نمیشود.",
     terms: "با ثبت سفارش، قوانین و شرایط فروشگاه را میپذیرید. قیمتها به تومان نمایش داده میشوند.",
+  },
+  store: {
+    orderPrefix: "ILK",
+    invoiceFooter: "",
   },
 };
 
@@ -148,6 +167,11 @@ export async function getSiteConfig(): Promise<SiteConfig> {
   if (process.env.NEXT_PUBLIC_SITE_TAGLINE) fromEnv["site.tagline"] = process.env.NEXT_PUBLIC_SITE_TAGLINE;
   if (process.env.NEXT_PUBLIC_CONTACT_EMAIL) fromEnv["contact.email"] = process.env.NEXT_PUBLIC_CONTACT_EMAIL;
 
+  // Avoid database round-trips (and noisy Prisma errors) during `next build`.
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return applySiteSettings(defaultSiteConfig, fromEnv);
+  }
+
   let fromDb: Record<string, string> = {};
   try {
     const rows = await prisma.siteSetting.findMany({ select: { key: true, value: true } });
@@ -162,6 +186,7 @@ export const editableSettingKeys = [
   "site.name", "site.tagline", "site.description", "site.logo", "site.locale", "site.currency", "site.timezone",
   "theme.primary", "theme.secondary", "theme.background", "theme.text", "theme.border", "theme.hover",
   "contact.email", "contact.phone", "contact.address",
+  "shipping.flat", "shipping.alopeyk", "shipping.pishtaz", "shipping.tipax",
   "shipping.postal", "shipping.courier", "shipping.pickup", "shipping.freeThreshold",
   "features.wishlist", "features.reviews", "features.coupons", "features.sizeGuide", "features.newsletter",
   "content.about", "content.shippingPolicy", "content.returnPolicy", "content.privacyPolicy", "content.terms",

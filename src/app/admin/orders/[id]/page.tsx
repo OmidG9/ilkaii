@@ -1,26 +1,15 @@
 import type { Metadata } from "next";
 import { requirePagePermission } from "@/lib/auth/session";
 import { notFound } from "next/navigation";
-import { getAdminOrder } from "@/services/admin";
+import { getAdminOrder, ORDER_TRANSITIONS } from "@/services/admin";
 import { OrderStatusForm } from "@/components/admin/order-status-form";
 import { Card, SectionTitle } from "@/components/ui/display";
 import { formatToman } from "@/lib/money";
 import { formatJalali, formatNumber } from "@/lib/persian";
-import { orderStatusLabels, paymentStatusLabels } from "@/lib/labels";
+import { orderStatusLabels, paymentGatewayLabels, paymentStatusLabels, shippingMethodLabels } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "جزئیات سفارش — مدیریت" };
 export const dynamic = "force-dynamic";
-
-const transitions: Record<string, string[]> = {
-  PENDING_PAYMENT: ["PAID", "CANCELLED"],
-  PAID: ["PROCESSING", "CANCELLED", "REFUNDED"],
-  PROCESSING: ["PACKED", "CANCELLED"],
-  PACKED: ["SHIPPED"],
-  SHIPPED: ["DELIVERED", "REFUNDED"],
-  DELIVERED: ["REFUNDED"],
-  CANCELLED: [],
-  REFUNDED: [],
-};
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await requirePagePermission("orders.view");
@@ -76,7 +65,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             <h2 className="mb-4 text-lg font-semibold">اطلاعات تحویل</h2>
             <div className="grid gap-3 text-sm sm:grid-cols-2">
               <p>{order.recipientName} — <span dir="ltr">{order.recipientPhone}</span></p>
-              <p dir="ltr" className="text-xs text-ink/55">{order.shippingMethod}</p>
+              <p className="text-xs text-ink/60">روش ارسال: {shippingMethodLabels[order.shippingMethod]}</p>
               <p className="sm:col-span-2">{order.province}، {order.city}، {order.street}</p>
               <p dir="ltr" className="text-xs text-ink/55">{order.postalCode}</p>
               {order.trackingNumber ? <p dir="ltr" className="text-xs text-primary">کد پیگیری: {order.trackingNumber}</p> : null}
@@ -100,13 +89,16 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           {order.payments.length ? (
             <Card className="p-6">
               <h2 className="mb-4 text-lg font-semibold">پرداختها</h2>
+              {order.paymentGateway ? (
+                <p className="mb-3 text-xs text-ink/50">درگاه انتخابی: <span className="font-medium text-ink/75">{paymentGatewayLabels[order.paymentGateway] ?? order.paymentGateway}</span></p>
+              ) : null}
               <div className="table-wrap">
                 <table className="table-luxury">
                   <thead><tr><th>درگاه</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th></tr></thead>
                   <tbody>
                     {order.payments.map((payment) => (
                       <tr key={payment.id}>
-                        <td dir="ltr">{payment.provider}</td>
+                        <td dir="ltr">{paymentGatewayLabels[payment.provider] ?? payment.provider}</td>
                         <td dir="ltr">{formatToman(payment.amount)}</td>
                         <td>{paymentStatusLabels[payment.status]}</td>
                         <td>{formatJalali(payment.createdAt)}</td>
@@ -120,7 +112,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
         </div>
 
         <div className="space-y-6">
-          <OrderStatusForm orderId={order.id} currentStatus={order.status} transitions={transitions[order.status] ?? []} labels={orderStatusLabels} />
+          <OrderStatusForm orderId={order.id} currentStatus={order.status} transitions={ORDER_TRANSITIONS[order.status] ?? []} labels={orderStatusLabels} />
           <Card className="p-6">
             <h2 className="mb-4 text-lg font-semibold">مشتری</h2>
             <p className="text-sm">{order.user ? [order.user.firstName, order.user.lastName].filter(Boolean).join(" ") || "—" : "—"}</p>

@@ -1,14 +1,35 @@
 import { z } from "zod";
-import { isValidIranianPhone, isValidPostalCode, normalizeIranianPhone } from "@/lib/persian";
+import { isValidIranianPhone, isValidPostalCode, normalizeDigits, normalizeIranianPhone } from "@/lib/persian";
 import { ANALYTICS_EVENT_NAMES } from "@/lib/analytics-types";
 
 const id = () => z.string().regex(/^[a-zA-Z0-9_-]{8,64}$/, "شناسه نامعتبر است");
 const phone = () => z.string().refine(isValidIranianPhone, "شماره موبایل ایرانی نامعتبر است").transform((v) => normalizeIranianPhone(v)!);
 const toman = () => z.coerce.number().int().nonnegative().max(1_000_000_000);
 
+/** Query-string numbers accept Persian/Arabic digits and thousands separators. */
+function queryNumber() {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const normalized = normalizeDigits(String(value)).replace(/[^\d]/g, "");
+    return normalized ? Number(normalized) : undefined;
+  }, z.number().int().nonnegative().optional());
+}
+
+function queryPositiveInt(defaultValue: number) {
+  return z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const normalized = normalizeDigits(String(value)).replace(/[^\d]/g, "");
+    return normalized ? Number(normalized) : undefined;
+  }, z.number().int().min(1).default(defaultValue));
+}
+
 export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(48).default(12),
+  page: queryPositiveInt(1),
+  pageSize: z.preprocess((value) => {
+    if (value === undefined || value === null || value === "") return undefined;
+    const normalized = normalizeDigits(String(value)).replace(/[^\d]/g, "");
+    return normalized ? Number(normalized) : undefined;
+  }, z.number().int().min(1).max(48).default(12)),
 });
 
 export const productQuerySchema = paginationSchema.extend({
@@ -16,8 +37,8 @@ export const productQuerySchema = paginationSchema.extend({
   category: z.string().max(80).optional(),
   size: z.string().max(10).optional(),
   color: z.string().max(40).optional(),
-  minPrice: z.coerce.number().int().nonnegative().optional(),
-  maxPrice: z.coerce.number().int().nonnegative().optional(),
+  minPrice: queryNumber(),
+  maxPrice: queryNumber(),
   sort: z.enum(["newest", "price-asc", "price-desc", "popular", "name"]).default("newest"),
   available: z.enum(["true", "false"]).optional(),
   featured: z.enum(["true", "false"]).optional(),
@@ -37,14 +58,24 @@ export const addressSchema = z.object({
   province: z.string().min(2).max(60),
   city: z.string().min(2).max(60),
   street: z.string().min(5).max(300),
-  postalCode: z.string().refine(isValidPostalCode, "کد پستی نامعتبر است"),
+  postalCode: z.string()
+    .transform((value) => normalizeDigits(value).replace(/\D/g, ""))
+    .refine(isValidPostalCode, "کد پستی نامعتبر است"),
   isDefault: z.boolean().default(false),
 });
 
+const optionalName = () => z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? null : value,
+  z.string().trim().min(2).max(60).nullable().optional(),
+);
+
 export const profileSchema = z.object({
-  firstName: z.string().min(2).max(60).optional(),
-  lastName: z.string().min(2).max(60).optional(),
-  email: z.string().email().optional().nullable(),
+  firstName: optionalName(),
+  lastName: optionalName(),
+  email: z.preprocess(
+    (value) => typeof value === "string" && value.trim() === "" ? null : value,
+    z.string().email().max(320).nullable().optional(),
+  ),
   marketingOptIn: z.boolean().optional(),
 });
 
@@ -59,9 +90,10 @@ export const checkoutSchema = z.object({
   // Use a saved address or supply a new one (validated and created atomically).
   addressId: id().optional(),
   address: addressSchema.optional(),
-  shippingMethod: z.enum(["POSTAL", "COURIER", "PICKUP"]).default("POSTAL"),
+  shippingMethod: z.enum(["FLAT", "ALOPEYK", "PISHTAZ", "TIPAX", "POSTAL", "COURIER", "PICKUP"]).default("PISHTAZ"),
   paymentMethod: z.enum(["ONLINE", "COD"]).default("ONLINE"),
-  couponCode: z.string().min(3).max(32).optional(),
+  paymentGateway: z.enum(["ZARINPAL", "ZIBAL", "BEHPARDAKHT"]).default("ZARINPAL"),
+  couponCode: z.string().trim().min(3).max(32).transform((value) => value.toUpperCase()).optional(),
   expectPayment: z.boolean().default(true),
 }).refine((v) => Boolean(v.addressId || v.address), {
   message: "آدرس تحویل الزامی است",
@@ -136,9 +168,21 @@ export const reviewSchema = z.object({
   comment: z.string().min(10).max(2000),
 });
 
+export const returnItemSchema = z.object({
+  orderItemId: id(),
+  quantity: z.number().int().min(1).max(1000),
+});
+
 export const returnSchema = z.object({
   orderId: id(),
   reason: z.string().min(10).max(2000),
+  items: z.array(returnItemSchema)
+    .min(1, "حداقل یک قلم کالا را انتخاب کنید")
+    .max(50)
+    .refine(
+      (items) => new Set(items.map((item) => item.orderItemId)).size === items.length,
+      "هر قلم کالا فقط یک بار قابل انتخاب است",
+    ),
 });
 
 export const orderStatusSchema = z.object({

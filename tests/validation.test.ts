@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import {
   addressSchema,
   checkoutSchema,
+  productQuerySchema,
   productSchema,
+  profileSchema,
   requestOtpSchema,
+  returnSchema,
   variantSchema,
 } from "../src/lib/validation";
 
@@ -31,15 +34,48 @@ test("addressSchema rejects invalid phone and postal code", () => {
   assert.equal(addressSchema.safeParse({ ...validAddress, street: "کم" }).success, false);
 });
 
+test("addressSchema normalizes Persian postal-code digits before storing", () => {
+  const parsed = addressSchema.parse({ ...validAddress, postalCode: "۱۲۳۴۵۶۷۸۹۰" });
+  assert.equal(parsed.postalCode, "1234567890");
+});
+
+test("productQuerySchema accepts Persian digits and thousands separators", () => {
+  const parsed = productQuerySchema.parse({
+    minPrice: "۱٬۲۰۰٬۰۰۰",
+    maxPrice: "2,500,000",
+    page: "۲",
+    pageSize: "۲۴",
+  });
+  assert.equal(parsed.minPrice, 1_200_000);
+  assert.equal(parsed.maxPrice, 2_500_000);
+  assert.equal(parsed.page, 2);
+  assert.equal(parsed.pageSize, 24);
+});
+
+test("profileSchema lets customers clear optional names and email", () => {
+  const parsed = profileSchema.parse({ firstName: "", lastName: "  ", email: "" });
+  assert.equal(parsed.firstName, null);
+  assert.equal(parsed.lastName, null);
+  assert.equal(parsed.email, null);
+});
+
 test("checkoutSchema requires an address reference or payload", () => {
-  assert.equal(checkoutSchema.safeParse({ shippingMethod: "POSTAL" }).success, false);
+  assert.equal(checkoutSchema.safeParse({ shippingMethod: "PISHTAZ" }).success, false);
   assert.equal(
-    checkoutSchema.safeParse({ address: validAddress, shippingMethod: "POSTAL", paymentMethod: "ONLINE" }).success,
+    checkoutSchema.safeParse({ address: validAddress, shippingMethod: "PISHTAZ", paymentMethod: "ONLINE", paymentGateway: "ZARINPAL" }).success,
     true,
   );
   assert.equal(
     checkoutSchema.safeParse({ addressId: "clx1234567890", paymentMethod: "COD" }).success,
     true,
+  );
+  assert.equal(
+    checkoutSchema.safeParse({ address: validAddress, shippingMethod: "ALOPEYK", paymentGateway: "ZIBAL" }).success,
+    true,
+  );
+  assert.equal(
+    checkoutSchema.safeParse({ address: validAddress, paymentGateway: "UNKNOWN" }).success,
+    false,
   );
 });
 
@@ -59,6 +95,24 @@ test("productSchema enforces sale price below base price", () => {
   assert.equal(productSchema.safeParse(base).success, true);
   assert.equal(productSchema.safeParse({ ...base, salePrice: 400_000 }).success, true);
   assert.equal(productSchema.safeParse({ ...base, salePrice: 600_000 }).success, false);
+});
+
+test("returnSchema requires per-line quantities and unique lines", () => {
+  const base = {
+    orderId: "clx1234567890",
+    reason: "کالا با توضیحات سایت مطابقت ندارد",
+    items: [{ orderItemId: "clx1234567891", quantity: 1 }],
+  };
+  assert.equal(returnSchema.safeParse(base).success, true);
+  assert.equal(returnSchema.safeParse({ ...base, items: [] }).success, false);
+  assert.equal(returnSchema.safeParse({ ...base, items: [{ orderItemId: "clx1234567891", quantity: 0 }] }).success, false);
+  assert.equal(returnSchema.safeParse({
+    ...base,
+    items: [
+      { orderItemId: "clx1234567891", quantity: 1 },
+      { orderItemId: "clx1234567891", quantity: 1 },
+    ],
+  }).success, false);
 });
 
 test("variantSchema rejects negative stock and unsafe SKU", () => {

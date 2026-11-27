@@ -4,7 +4,7 @@ White-label Persian fashion e-commerce (Next.js 15 App Router + Prisma + MySQL).
 
 ## 1. Requirements
 
-- Node.js **20+** (build and runtime; `sharp` prebuilt binaries)
+- Node.js **20.9+** (build and runtime; `sharp` 0.35 prebuilt binaries)
 - MySQL **8.0+** with `utf8mb4` / `utf8mb4_unicode_ci`
 - A reverse proxy (Nginx/Caddy) terminating TLS
 - About 512 MB RAM minimum; 1 GB recommended for image optimization
@@ -28,10 +28,14 @@ needs it.
 | `SMS_API_URL` / `SMS_API_TOKEN` | prod | Kavenegar-style HTTP SMS adapter |
 | `EMAIL_API_URL` | prod (marketing) | HTTP JSON email provider; token can be stored in Admin → Settings → Integrations |
 | `CRON_SECRET` | prod | Bearer secret for `POST /api/cron/maintenance`; without it the route is 404 in production |
-| `PAYMENT_PROVIDER` | prod | `ZARINPAL` in production; `MOCK` is rejected |
-| `ZARINPAL_MERCHANT_ID` | prod | Merchant ID |
+| `REDIS_URL` | multi-instance | Shared rate limiter for OTP/analytics/newsletter. Without it each Node process counts separately. |
+| `PAYMENT_PROVIDER` | prod | Default gateway (`ZARINPAL`, `ZIBAL`, `BEHPARDAKHT`); `MOCK` is rejected |
+| `ZARINPAL_MERCHANT_ID` | prod | Zarinpal merchant ID |
 | `ZARINPAL_SANDBOX` | no | `true` for sandbox, `false` for live |
+| `ZIBAL_MERCHANT` | if Zibal | Zibal merchant ID |
+| `BEHPARDAKHT_TERMINAL_ID` / `_USERNAME` / `_PASSWORD` | if Mellat | Behpardakht Mellat terminal credentials |
 | `STORAGE_DRIVER` | no | `LOCAL` (default) or `CLOUDINARY` |
+| `LOCAL_UPLOAD_DIR` | if LOCAL | Absolute writable volume path; defaults to `public/uploads` (dev only) |
 | `CLOUDINARY_*` | if Cloudinary | cloud name, API key, API secret |
 
 > `NODE_ENV=production` is required at runtime so that MOCK payments and the
@@ -62,9 +66,14 @@ ADMIN_PHONE=09123456789 BOOTSTRAP_CONFIRM=yes npm run admin:grant
 
 ```bash
 npm ci
-npm run type-check
-npm test
+npm run verify      # type-check + lint + unit/contract tests
 npm run build
+```
+
+If a dev server or another build already owns `.next`, isolate the output:
+
+```bash
+NEXT_DIST_DIR=.next-audit-build npm run build
 ```
 
 Start the production server (respects `PORT`, default 3000):
@@ -100,23 +109,42 @@ duplicate conflicting CSP headers at the proxy.
 
 ## 6. Payments & SMS
 
-- **Zarinpal**: set `PAYMENT_PROVIDER=ZARINPAL`, `ZARINPAL_MERCHANT_ID`, and
-  `ZARINPAL_SANDBOX=false` for live. Callbacks hit
-  `/api/payments/callback?provider=zarinpal`.
-- **COD**: handled without a gateway; the order is marked paid on creation.
-- **SMS**: `SMS_API_URL` + `SMS_API_TOKEN`. Without them, production OTP login
-  cannot send codes — configure a provider before launch.
+- **Zarinpal**: set `ZARINPAL_MERCHANT_ID`, and `ZARINPAL_SANDBOX=false` for
+  live. Callback: `/api/payments/callback`.
+- **Zibal**: set `ZIBAL_MERCHANT` (or store `payment.zibal_merchant` in Admin →
+  Integrations). Callback: `/api/payments/callback`.
+- **Behpardakht Mellat**: set `BEHPARDAKHT_TERMINAL_ID`,
+  `BEHPARDAKHT_USERNAME`, and `BEHPARDAKHT_PASSWORD`. The gateway receives a
+  POST form from `/api/payments/mellat/redirect`; callbacks return to
+  `/api/payments/callback`.
+- In development, a gateway without credentials falls back to the local mock
+  adapter so the full checkout remains testable. Production never falls back.
+- **COD**: handled without a gateway; the order starts as `PROCESSING` with
+  `paymentStatus=PENDING` and is marked paid when the admin records delivery.
+- **Resuming**: `/api/payments/resume?order=...` re-opens the existing gateway
+  session for a pending order owned by the signed-in customer.
+- **SMS**: `SMS_API_URL` + `SMS_API_TOKEN` (or Admin → Integrations). Without a
+  provider, production OTP login cannot send codes — configure it before launch.
 
 ## 7. Storage
 
-- `LOCAL` writes to `public/uploads/` (ignored by git). On ephemeral hosts this
-  directory must be a persistent volume.
+- `LOCAL` writes to `LOCAL_UPLOAD_DIR` (default `public/uploads/`, ignored by
+  git) and is served by the `/uploads/[...path]` route. Set
+  `LOCAL_UPLOAD_DIR=/var/lib/ilkaii/uploads` and mount that path as a persistent
+  writable volume in production. Serverless/read-only filesystems must use
+  `CLOUDINARY`.
 - `CLOUDINARY` requires all three credentials; images are delivered from
   `res.cloudinary.com` (already allowlisted for `next/image`).
 
 ## 8. Operations
 
 - **Backups**: nightly `mysqldump` + periodic restore drills.
+- **Rate limits**: set `REDIS_URL` when running more than one instance; the
+  limiter atomically increments hashed keys with a TTL and falls back to the
+  in-process limiter for 30 seconds if Redis is temporarily unavailable.
+- **Pending orders**: schedule `POST /api/cron/maintenance` (Bearer
+  `CRON_SECRET`) at least hourly. It cancels unpaid `PENDING_PAYMENT` orders
+  older than 24 hours and restores stock.
 - **Sessions/OTP cleanup**: expired `Session` and `OtpChallenge` rows can be
   pruned by a scheduled job (`DELETE ... WHERE expiresAt < NOW()`).
 - **Audit retention**: keep `AuditLog` per your compliance policy; it is
@@ -133,6 +161,10 @@ duplicate conflicting CSP headers at the proxy.
 - [ ] Zarinpal merchant configured and a real sandbox payment verified
 - [ ] SMS provider sends OTP to a real phone
 - [ ] `NEXT_PUBLIC_BASE_URL` is the public HTTPS origin
-- [ ] Uploads persist (volume or Cloudinary)
+- [ ] `REDIS_URL` configured if more than one instance runs
+- [ ] Uploads persist (`LOCAL_UPLOAD_DIR` volume or Cloudinary)
+- [ ] CSP has no browser console violations (production nonce policy)
 - [ ] `robots.txt` / `sitemap.xml` resolve under the public domain
 - [ ] Backups scheduled and restore tested
+- [ ] `prisma migrate deploy` applied `ReturnItem` (per-line returns)
+- [ ] Cron/maintenance scheduled (stale pending orders, analytics retention)

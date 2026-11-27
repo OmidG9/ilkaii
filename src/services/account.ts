@@ -73,6 +73,10 @@ export async function getUserOrder(userId: string, orderNumber: string) {
       payments: { select: { provider: true, status: true, reference: true, createdAt: true } },
       shipments: true,
       statusHistory: { orderBy: { createdAt: "asc" } },
+      returnRequests: {
+        orderBy: { createdAt: "desc" },
+        include: { items: { select: { orderItemId: true, quantity: true } } },
+      },
     },
   });
   if (!order) throw Errors.notFound("سفارش یافت نشد");
@@ -180,13 +184,76 @@ export async function listUserReviews(userId: string) {
 }
 
 export async function createReturn(userId: string, input: ReturnInput) {
-  const order = await prisma.order.findFirst({ where: { id: input.orderId, userId } });
+  const order = await prisma.order.findFirst({
+    where: { id: input.orderId, userId },
+    select: {
+      id: true,
+      status: true,
+      items: { select: { id: true, quantity: true, productName: true } },
+    },
+  });
   if (!order) throw Errors.notFound("سفارش یافت نشد");
   if (!["DELIVERED", "SHIPPED"].includes(order.status)) throw Errors.badRequest("امکان درخواست بازگشت برای این سفارش وجود ندارد");
+
+  const orderItems = new Map(order.items.map((item) => [item.id, item]));
+  for (const requested of input.items) {
+    const item = orderItems.get(requested.orderItemId);
+    if (!item) throw Errors.badRequest("یکی از اقلام انتخابی متعلق به این سفارش نیست");
+    if (requested.quantity > item.quantity) {
+      throw Errors.badRequest(`تعداد بازگشتی «${item.productName}» بیشتر از تعداد خریداری‌شده است`);
+    }
+  }
+
+  // Count every non-rejected request, including legacy order-level requests
+  // that have no ReturnItem rows, so a line cannot be returned twice.
+  const activeRequests = await prisma.returnRequest.findMany({
+    where: { orderId: order.id, status: { in: ["PENDING", "APPROVED", "COMPLETED"] } },
+    select: { items: { select: { orderItemId: true, quantity: true } } },
+  });
+  if (activeRequests.some((request) => request.items.length === 0)) {
+    throw Errors.conflict("برای این سفارش یک درخواست بازگشت در انتظار بررسی وجود دارد");
+  }
+  const requestedByItem = new Map<string, number>();
+  for (const request of activeRequests) {
+    for (const item of request.items) {
+      requestedByItem.set(item.orderItemId, (requestedByItem.get(item.orderItemId) ?? 0) + item.quantity);
+    }
+  }
+  for (const requested of input.items) {
+    const item = orderItems.get(requested.orderItemId)!;
+    const remaining = item.quantity - (requestedByItem.get(requested.orderItemId) ?? 0);
+    if (requested.quantity > remaining) {
+      throw Errors.conflict(`برای «${item.productName}» فقط ${Math.max(0, remaining)} عدد قابل بازگشت است`);
+    }
+  }
+
   await audit({ actorId: userId, action: "return.requested", entity: "Order", entityId: order.id });
-  return prisma.returnRequest.create({ data: { orderId: order.id, userId, reason: input.reason } });
+  return prisma.returnRequest.create({
+    data: {
+      orderId: order.id,
+      userId,
+      reason: input.reason,
+      items: {
+        create: input.items.map((item) => ({ orderItemId: item.orderItemId, quantity: item.quantity })),
+      },
+    },
+    include: {
+      items: { include: { orderItem: { select: { productName: true, variantName: true, sku: true } } } },
+    },
+  });
 }
 
 export async function listMyReturns(userId: string) {
-  return prisma.returnRequest.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, include: { order: { select: { orderNumber: true, status: true } } } });
+  return prisma.returnRequest.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      order: { select: { orderNumber: true, status: true } },
+      items: {
+        include: {
+          orderItem: { select: { productName: true, variantName: true, sku: true } },
+        },
+      },
+    },
+  });
 }

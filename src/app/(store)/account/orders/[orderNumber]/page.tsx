@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Image from "next/image";
 import { requirePageUser } from "@/lib/auth/session";
 import { getUserOrder } from "@/services/account";
+import { getSiteConfig } from "@/config/site";
 import { Card, SectionTitle } from "@/components/ui/display";
+import { ButtonLink } from "@/components/ui/button";
+import { SafeImage } from "@/components/safe-image";
 import { ReturnForm } from "@/components/return-form";
 import { formatJalali, formatNumber } from "@/lib/persian";
 import { formatToman } from "@/lib/money";
-import { orderStatusLabels, paymentStatusLabels } from "@/lib/labels";
+import { orderStatusLabels, paymentStatusLabels, returnStatusLabels } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "جزئیات سفارش", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -23,6 +25,26 @@ export default async function OrderDetailPage({ params }: Props) {
   } catch {
     notFound();
   }
+  const site = await getSiteConfig();
+  const canResume = order.status === "PENDING_PAYMENT" && order.paymentStatus === "PENDING" &&
+    order.payments.some((payment) => payment.status === "PENDING");
+  const requestedByItem = new Map<string, number>();
+  for (const request of order.returnRequests) {
+    if (request.status === "REJECTED") continue;
+    for (const item of request.items) {
+      requestedByItem.set(item.orderItemId, (requestedByItem.get(item.orderItemId) ?? 0) + item.quantity);
+    }
+  }
+  const returnableItems = order.items.map((item) => ({
+    id: item.id,
+    productName: item.productName,
+    variantName: item.variantName,
+    quantity: item.quantity,
+    returnable: Math.max(0, item.quantity - (requestedByItem.get(item.id) ?? 0)),
+  }));
+  const hasLegacyActiveReturn = order.returnRequests.some(
+    (request) => request.status !== "REJECTED" && request.items.length === 0,
+  );
 
   return (
     <div className="space-y-8">
@@ -31,9 +53,14 @@ export default async function OrderDetailPage({ params }: Props) {
           <h1 className="text-3xl font-semibold">سفارش <span dir="ltr" className="text-primary">{order.orderNumber}</span></h1>
           <p className="mt-2 text-xs text-ink/55">ثبت شده در {formatJalali(order.createdAt)}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-full bg-primary/10 px-4 py-2 text-xs text-primary">{orderStatusLabels[order.status]}</span>
           <span className="rounded-full bg-line px-4 py-2 text-xs text-ink/65">{paymentStatusLabels[order.paymentStatus]}</span>
+          {canResume ? (
+            <ButtonLink href={`/api/payments/resume?order=${encodeURIComponent(order.orderNumber)}`} size="sm">
+              ادامه پرداخت
+            </ButtonLink>
+          ) : null}
         </div>
       </div>
 
@@ -43,7 +70,7 @@ export default async function OrderDetailPage({ params }: Props) {
           {order.items.map((item) => (
             <div key={item.id} className="flex gap-4 border-b border-line/70 pb-4 last:border-0 last:pb-0">
               <div className="relative h-20 w-16 shrink-0 overflow-hidden rounded-xl border border-line bg-line/20">
-                {item.imageUrl ? <Image src={item.imageUrl} alt={item.productName} fill sizes="64px" className="object-cover" /> : null}
+                {item.imageUrl ? <SafeImage src={item.imageUrl} alt={item.productName} fill sizes="64px" className="object-cover" fallbackLabel={item.productName} /> : null}
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium">{item.productName}</p>
@@ -94,11 +121,44 @@ export default async function OrderDetailPage({ params }: Props) {
         </Card>
       </div>
 
+      {order.returnRequests.length ? (
+        <Card className="p-6">
+          <h2 className="mb-4 text-lg font-semibold">درخواست‌های بازگشت</h2>
+          <div className="space-y-3">
+            {order.returnRequests.map((request) => (
+              <div key={request.id} className="rounded-2xl border border-line p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-ink/45">{formatJalali(request.createdAt)}</span>
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{returnStatusLabels[request.status]}</span>
+                </div>
+                {request.items.length ? (
+                  <ul className="mt-2 space-y-1 text-xs text-ink/60">
+                    {request.items.map((item) => {
+                      const orderItem = order.items.find((entry) => entry.id === item.orderItemId);
+                      return <li key={item.orderItemId}>{orderItem?.productName ?? "کالا"} × {formatNumber(item.quantity)}</li>;
+                    })}
+                  </ul>
+                ) : <p className="mt-2 text-xs text-ink/50">کل اقلام سفارش</p>}
+                {request.note ? <p className="mt-2 text-xs text-ink/55">پاسخ مدیر: {request.note}</p> : null}
+              </div>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
       {["SHIPPED", "DELIVERED"].includes(order.status) ? (
         <section>
           <SectionTitle title="درخواست بازگشت" />
-          <ReturnForm orderId={order.id} />
+          {hasLegacyActiveReturn ? (
+            <Card className="p-6 text-sm text-ink/60">درخواست بازگشت قبلی این سفارش در حال بررسی است.</Card>
+          ) : (
+            <ReturnForm orderId={order.id} items={returnableItems} />
+          )}
         </section>
+      ) : null}
+
+      {site.store.invoiceFooter ? (
+        <Card className="p-5 text-xs leading-6 text-ink/55">{site.store.invoiceFooter}</Card>
       ) : null}
     </div>
   );

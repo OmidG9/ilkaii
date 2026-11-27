@@ -1,11 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
 export function SignOutButton() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
     <Button
@@ -18,9 +16,8 @@ export function SignOutButton() {
         try {
           await fetch("/api/auth/logout", { method: "POST" });
         } finally {
-          router.push("/");
-          router.refresh();
-          setBusy(false);
+          // Hard navigation clears the in-memory cart/session UI state.
+          window.location.assign("/");
         }
       }}
       className="w-full justify-start"

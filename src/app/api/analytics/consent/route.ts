@@ -21,7 +21,7 @@ export const POST = route(async (request: NextRequest) => {
       httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 90,
     });
   }
-  if (!checkRateLimit(`consent:${clientIp(request)}`, 30, 60_000).ok) {
+  if (!(await checkRateLimit(`consent:${clientIp(request)}`, 30, 60_000)).ok) {
     return ok({ saved: false }, 202);
   }
   const user = await getSessionUser().catch(() => null);

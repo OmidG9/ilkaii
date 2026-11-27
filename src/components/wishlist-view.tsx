@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Heart } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/display";
+import { SafeImage } from "@/components/safe-image";
 import { formatToman } from "@/lib/money";
 
 interface WishlistItem {
@@ -44,7 +44,7 @@ export function WishlistView({ items }: { items: WishlistItem[] }) {
       {items.map((item) => (
         <Card key={item.id} className="p-4">
           <Link href={`/product/${item.slug}`} className="relative block aspect-[3/4] overflow-hidden rounded-xl border border-line bg-line/20">
-            {item.image ? <Image src={item.image} alt={item.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" /> : null}
+            {item.image ? <SafeImage src={item.image} alt={item.name} fill sizes="(max-width: 640px) 50vw, 33vw" className="object-cover" fallbackLabel={item.name} /> : null}
           </Link>
           <div className="mt-3 flex items-start justify-between gap-2">
             <div>

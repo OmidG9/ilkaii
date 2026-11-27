@@ -128,10 +128,17 @@ export async function getActiveHomepageSections() {
 }
 
 export async function getActiveMenu(location: "HEADER" | "FOOTER" | "MOBILE") {
-  const menu = await prisma.menu.findUnique({
-    where: { location },
-    include: { items: { where: { isActive: true }, orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] } },
-  });
+  if (process.env.NEXT_PHASE === "phase-production-build") return [];
+  let menu;
+  try {
+    menu = await prisma.menu.findUnique({
+      where: { location },
+      include: { items: { where: { isActive: true }, orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] } },
+    });
+  } catch {
+    // Navigation is optional; a temporary DB outage must not take down pages.
+    return [];
+  }
   if (!menu) return [];
   const byParent = new Map<string | null, typeof menu.items>();
   for (const item of menu.items) {

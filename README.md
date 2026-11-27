@@ -14,8 +14,11 @@ phone/postal validation.
 
 ## Features
 
-- Storefront: home, shop, search, category, product detail, cart, checkout,
-  order tracking, content/policy pages
+- Storefront: home, shop, new arrivals, seasonal sale, lookbook, collections,
+  brands, search, category, product detail, cart, checkout, order tracking, FAQ,
+  boutique locator, journal, brand story, sustainability, content/policy pages
+- Custom per-route loading skeletons, error boundaries and editorial 404 pages
+  (global, store, product, category, collection, journal and admin)
 - Customer account: profile, addresses, orders, wishlist, reviews, returns
 - Admin dashboard: overview, products/variants/images, categories, brands,
   inventory ledger, orders + status transitions, customers, coupons, returns,
@@ -26,6 +29,9 @@ phone/postal validation.
   granular RBAC with custom roles
 - Server-authoritative checkout, idempotency keys, stock reservation and
   compensation on payment failure
+- Selectable shipping rates (flat, AloPeyk for Tehran, Pishtaz, Tipax) and
+  payment gateways (Zarinpal, Zibal, Behpardakht Mellat), with credentials
+  managed through env or encrypted Admin → Integrations secrets
 - Configurable SMS/payment/storage adapters; dev-only mock adapters are blocked
   in production
 - SEO: dynamic sitemap, robots, canonical URLs, Product/Organization/Breadcrumb
@@ -33,7 +39,7 @@ phone/postal validation.
 
 ## Requirements
 
-- Node.js 20.6+ (Node 22 recommended)
+- Node.js 20.9+ (Node 22 recommended; required by sharp 0.35)
 - MySQL 8.0+
 
 ## Quick start

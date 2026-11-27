@@ -14,8 +14,8 @@ export function generateOtp(): string {
 
 /** Generic response: never reveals whether a phone has an account. */
 export async function requestOtp(phone: string, ip: string) {
-  assertRateLimit(`otp-request:${phone}`, OTP_REQUEST_LIMIT.limit, OTP_REQUEST_LIMIT.windowMs);
-  assertRateLimit(`otp-request-ip:${ip}`, 20, 15 * 60 * 1000);
+  await assertRateLimit(`otp-request:${phone}`, OTP_REQUEST_LIMIT.limit, OTP_REQUEST_LIMIT.windowMs);
+  await assertRateLimit(`otp-request-ip:${ip}`, 20, 15 * 60 * 1000);
 
   const previous = await prisma.otpChallenge.findFirst({
     where: { phone },
@@ -39,13 +39,13 @@ export async function requestOtp(phone: string, ip: string) {
     }),
   ]);
 
-  await getSmsProvider().sendOtp(phone, code);
+  await (await getSmsProvider()).sendOtp(phone, code);
   return { sent: true, retryAfterSeconds: OTP_RESEND_COOLDOWN_MS / 1000 };
 }
 
 export async function verifyOtp(phone: string, otp: string, ip: string) {
-  assertRateLimit(`otp-verify:${phone}`, OTP_VERIFY_LIMIT.limit, OTP_VERIFY_LIMIT.windowMs);
-  assertRateLimit(`otp-verify-ip:${ip}`, 30, 15 * 60 * 1000);
+  await assertRateLimit(`otp-verify:${phone}`, OTP_VERIFY_LIMIT.limit, OTP_VERIFY_LIMIT.windowMs);
+  await assertRateLimit(`otp-verify-ip:${ip}`, 30, 15 * 60 * 1000);
 
   const challenge = await prisma.otpChallenge.findFirst({ where: { phone }, orderBy: { createdAt: "desc" } });
   if (!challenge || challenge.consumedAt || challenge.expiresAt < new Date()) {

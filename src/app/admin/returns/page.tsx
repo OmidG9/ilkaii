@@ -21,6 +21,9 @@ export default async function AdminReturnsPage() {
     customer: [item.user.firstName, item.user.lastName].filter(Boolean).join(" ") || item.user.phone || "—",
     amount: formatToman(toToman(item.order.totalAmount)),
     createdAtLabel: formatJalali(item.createdAt.toISOString()),
+    itemsLabel: item.items.length
+      ? item.items.map((line) => `${line.orderItem.productName} × ${line.quantity}`).join("، ")
+      : "کل اقلام سفارش",
   })) as unknown as Array<Record<string, unknown>>;
   const fields: EntityField[] = [
     { key: "status", label: "وضعیت", type: "select", required: true, options: [
@@ -41,6 +44,7 @@ export default async function AdminReturnsPage() {
         columns={[
           { key: "orderNumber", label: "سفارش", ltr: true },
           { key: "customer", label: "مشتری" },
+          { key: "itemsLabel", label: "اقلام" },
           { key: "reason", label: "دلیل" },
           { key: "amount", label: "مبلغ سفارش", ltr: true },
           { key: "status", label: "وضعیت" },

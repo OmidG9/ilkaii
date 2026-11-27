@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -61,6 +61,9 @@ html:root[data-theme="dark"] {
 
 @layer components {
   .container-luxury { @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase tracking-[0.32em] text-primary/70; }
+  .editorial-rule { @apply h-px w-full bg-gradient-to-l from-transparent via-line to-transparent; }
+  .editorial-card { @apply overflow-hidden rounded-[32px] border border-line bg-surface; }
   .surface-card { @apply rounded-luxury border border-line bg-surface shadow-soft; }
   .field {
     @apply w-full min-h-touch rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink
@@ -88,6 +91,43 @@ html:root[data-theme="dark"] {
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-outline {
+    -webkit-text-stroke: 1px currentColor;
+    color: transparent;
+  }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .grain {
+    background-image: radial-gradient(rgb(var(--color-text-rgb) / 0.055) 0.6px, transparent 0.6px);
+    background-size: 7px 7px;
+  }
+  .editorial-grid {
+    background-image:
+      linear-gradient(to right, rgb(var(--color-border-rgb) / 0.7) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-border-rgb) / 0.7) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+  .writing-vertical { writing-mode: vertical-rl; }
+}
+
+.marquee-track {
+  animation: marquee-slide 46s linear infinite;
+}
+
+/* In dark mode the primary token is a light beige; white-on-primary would be
+   unreadable. The inverse canvas color keeps solid primary controls legible. */
+html:root[data-theme="dark"] .bg-primary.text-white,
+html:root[data-theme="dark"] .bg-secondary.text-white {
+  color: rgb(var(--color-background-rgb));
+}
+
+@keyframes marquee-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 @media print {

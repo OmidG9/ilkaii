@@ -32,7 +32,7 @@ export const POST = route(async (request: NextRequest) => {
   }
 
   const ip = clientIp(request);
-  if (!checkRateLimit(`analytics:${sessionId}`, 180, 60_000).ok || !checkRateLimit(`analytics-ip:${ip}`, 600, 60_000).ok) {
+  if (!(await checkRateLimit(`analytics:${sessionId}`, 180, 60_000)).ok || !(await checkRateLimit(`analytics-ip:${ip}`, 600, 60_000)).ok) {
     return ok({ recorded: false, reason: "rate_limited" }, 202);
   }
 

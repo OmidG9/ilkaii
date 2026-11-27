@@ -18,7 +18,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["Vazirmatn", "Tahoma", "system-ui", "sans-serif"],
-        display: ["Playfair Display", "Georgia", "serif"],
+        display: ["Playfair Display", "Noto Naskh Arabic", "Georgia", "serif"],
       },
       spacing: { touch: "44px" },
       boxShadow: {

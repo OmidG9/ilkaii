@@ -9,9 +9,29 @@ import type {
   OrderStatus,
   PaymentStatus,
   ReturnStatus,
+  ShippingMethod,
   SubscriberStatus,
 } from "@prisma/client";
 import { BUILT_IN_ROLES, roleLabel } from "@/lib/permissions";
+
+export const shippingMethodLabels: Record<ShippingMethod, string> = {
+  POSTAL: "پست پیشتاز",
+  COURIER: "پیک",
+  PICKUP: "تحویل حضوری",
+  FLAT: "نرخ ثابت",
+  ALOPEYK: "الو پیک",
+  PISHTAZ: "پست پیشتاز",
+  TIPAX: "تیپاکس",
+};
+
+export const paymentGatewayLabels: Record<string, string> = {
+  ZARINPAL: "زرین‌پال",
+  ZIBAL: "زیبال",
+  BEHPARDAKHT: "به‌پرداخت ملت",
+  MOCK: "پرداخت آزمایشی",
+  COD: "پرداخت در محل",
+  FREE: "سفارش رایگان",
+};
 
 export const orderStatusLabels: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "در انتظار پرداخت",

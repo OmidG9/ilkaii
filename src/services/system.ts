@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { getAnalyticsSettings, applyRetentionPolicy } from "@/services/analytics";
 import { promoteScheduledContent, storageUsage } from "@/services/cms";
+import { expirePendingOrders } from "@/services/checkout";
+import { localUploadDirectory } from "@/services/storage";
 
 export interface HealthResult {
   status: "ok" | "degraded" | "down";
@@ -52,7 +54,7 @@ export async function recordSystemEvent(level: "info" | "warn" | "error" | "crit
 }
 
 async function localUploadsUsage() {
-  const directory = path.join(process.cwd(), "public", "uploads");
+  const directory = localUploadDirectory();
   try {
     const files = await readdir(directory);
     let bytes = 0;
@@ -105,13 +107,14 @@ export async function getSystemOverview() {
 export async function runMaintenanceJob(actorId?: string) {
   const job = await prisma.backgroundJob.create({ data: { name: "maintenance", status: "RUNNING", startedAt: new Date() } });
   try {
-    const [content, retention] = await Promise.all([
+    const [content, retention, staleOrders] = await Promise.all([
       promoteScheduledContent(actorId),
       applyRetentionPolicy(),
+      expirePendingOrders(),
     ]);
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const prunedEvents = await prisma.systemEvent.deleteMany({ where: { createdAt: { lt: cutoff } } });
-    const result = { content, retention, prunedSystemEvents: prunedEvents.count };
+    const result = { content, retention, staleOrders, prunedSystemEvents: prunedEvents.count };
     await prisma.backgroundJob.update({
       where: { id: job.id },
       data: { status: "SUCCESS", finishedAt: new Date(), result: JSON.stringify(result) },

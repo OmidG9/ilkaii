@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { requirePageUser } from "@/lib/auth/session";
 import { listMyReturns } from "@/services/account";
 import { Card, SectionTitle } from "@/components/ui/display";
-import { formatJalali } from "@/lib/persian";
+import { formatJalali, formatNumber } from "@/lib/persian";
 import { returnStatusLabels } from "@/lib/labels";
 
 export const metadata: Metadata = { title: "درخواستهای بازگشت", robots: { index: false } };
@@ -22,6 +22,16 @@ export default async function ReturnsPage() {
                 <p dir="ltr" className="text-sm font-semibold text-primary">{item.order.orderNumber}</p>
                 <span className="rounded-full bg-primary/10 px-3 py-1 text-xs text-primary">{returnStatusLabels[item.status]}</span>
               </div>
+              {item.items.length ? (
+                <ul className="mt-3 space-y-1 rounded-xl bg-canvas p-3 text-xs text-ink/65">
+                  {item.items.map((line) => (
+                    <li key={line.orderItemId}>
+                      {line.orderItem.productName}
+                      {line.orderItem.variantName ? ` — ${line.orderItem.variantName}` : ""} × {formatNumber(line.quantity)}
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="mt-3 text-xs text-ink/45">کل اقلام سفارش</p>}
               <p className="mt-3 text-sm leading-6 text-ink/65">{item.reason}</p>
               {item.note ? <p className="mt-2 rounded-xl bg-canvas p-3 text-xs text-ink/60">پاسخ مدیر: {item.note}</p> : null}
               <p className="mt-3 text-xs text-ink/45">{formatJalali(item.createdAt)}</p>

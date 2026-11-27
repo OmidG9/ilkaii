@@ -14,7 +14,8 @@ type CouponInput = z.infer<typeof couponSchema>;
 type OrderStatusInput = z.infer<typeof orderStatusSchema>;
 type SettingsInput = z.infer<typeof settingsSchema>;
 
-const TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
+/** Single source of truth for admin order status transitions. */
+export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PENDING_PAYMENT: ["PAID", "CANCELLED"],
   PAID: ["PROCESSING", "CANCELLED", "REFUNDED"],
   PROCESSING: ["PACKED", "CANCELLED"],
@@ -105,7 +106,7 @@ export async function getAdminOrder(id: string) {
 export async function updateOrderStatus(id: string, input: OrderStatusInput, actorId: string) {
   const order = await prisma.order.findUnique({ where: { id } });
   if (!order) throw Errors.notFound("سفارش یافت نشد");
-  if (!TRANSITIONS[order.status].includes(input.status)) {
+  if (!ORDER_TRANSITIONS[order.status].includes(input.status)) {
     throw Errors.conflict(`تغییر وضعیت از ${order.status} به ${input.status} مجاز نیست`);
   }
   if (input.status === "CANCELLED") {
@@ -113,6 +114,7 @@ export async function updateOrderStatus(id: string, input: OrderStatusInput, act
     return getAdminOrder(id);
   }
   if (input.status === "REFUNDED") {
+    if (order.paymentStatus !== "PAID") throw Errors.conflict("فقط سفارش پرداخت‌شده قابل بازپرداخت است");
     // Refunds can happen after shipping, so they must not reuse cancelOrder
     // (which forbids shipped/delivered orders). Restocking is handled by the
     // return workflow when goods are actually received back.
@@ -143,15 +145,23 @@ export async function updateOrderStatus(id: string, input: OrderStatusInput, act
     invalidateCache("dashboard:");
     return getAdminOrder(id);
   }
+  // Cash-on-delivery is settled when the order is actually delivered, and a
+  // manual PAID transition (offline transfer) must update the payment ledger too.
+  const settlesCash = input.status === "DELIVERED" && order.paymentMethod === "COD" && order.paymentStatus !== "PAID";
+  const manualPaid = input.status === "PAID" && order.paymentStatus !== "PAID";
   await prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id },
       data: {
         status: input.status,
-        paymentStatus: input.status === "PAID" ? "PAID" : order.paymentStatus,
+        paymentStatus: input.status === "PAID" || settlesCash ? "PAID" : order.paymentStatus,
+        ...(input.status === "PAID" || settlesCash ? { paidAt: new Date() } : {}),
         ...(input.status === "SHIPPED" ? { shippingMethod: order.shippingMethod } : {}),
       },
     });
+    if (manualPaid || settlesCash) {
+      await tx.payment.updateMany({ where: { orderId: id }, data: { status: "PAID" } });
+    }
     await tx.orderStatusHistory.create({
       data: { orderId: id, fromStatus: order.status, toStatus: input.status, note: input.note ?? null, changedById: actorId },
     });
@@ -263,35 +273,70 @@ export async function deleteCoupon(id: string) {
 export async function listReturns() {
   return prisma.returnRequest.findMany({
     orderBy: { createdAt: "desc" },
-    include: { order: { select: { orderNumber: true, totalAmount: true } }, user: { select: { phone: true, firstName: true, lastName: true } } },
+    include: {
+      order: { select: { orderNumber: true, totalAmount: true } },
+      user: { select: { phone: true, firstName: true, lastName: true } },
+      items: {
+        include: {
+          orderItem: { select: { productName: true, variantName: true, sku: true, quantity: true } },
+        },
+      },
+    },
   });
 }
 
 export async function processReturn(id: string, status: "APPROVED" | "REJECTED" | "COMPLETED", note: string | undefined, actorId: string) {
   const result = await prisma.$transaction(async (tx) => {
-    const existing = await tx.returnRequest.findUnique({ where: { id } });
+    const existing = await tx.returnRequest.findUnique({
+      where: { id },
+      include: { items: { select: { orderItemId: true, quantity: true } } },
+    });
     if (!existing) throw Errors.notFound("درخواست بازگشت یافت نشد");
+    if (existing.status === "COMPLETED" && status !== "COMPLETED") {
+      throw Errors.conflict("درخواست بازگشت تکمیل‌شده قابل تغییر نیست");
+    }
     const updated = await tx.returnRequest.update({ where: { id }, data: { status, note: note ?? null } });
 
-    // Completing a return puts the goods back on the shelf exactly once.
+    // Completing a return puts exactly the returned quantities back on the shelf.
     if (status === "COMPLETED" && existing.status !== "COMPLETED") {
-      const items = await tx.orderItem.findMany({
-        where: { orderId: existing.orderId },
-        select: { variantId: true, quantity: true },
-      });
       const touchedProducts = new Set<string>();
-      for (const item of items) {
-        if (!item.variantId) continue;
+      let restockLines: Array<{ variantId: string | null; quantity: number; productName: string }> = [];
+
+      if (existing.items.length) {
+        const orderItems = await tx.orderItem.findMany({
+          where: { id: { in: existing.items.map((item) => item.orderItemId) } },
+          select: { id: true, variantId: true, productName: true, quantity: true },
+        });
+        const byId = new Map(orderItems.map((item) => [item.id, item]));
+        restockLines = existing.items.flatMap((item) => {
+          const orderItem = byId.get(item.orderItemId);
+          return orderItem ? [{ variantId: orderItem.variantId, quantity: item.quantity, productName: orderItem.productName }] : [];
+        });
+      } else {
+        // Legacy order-level request created before per-line returns existed.
+        const alreadyCompleted = await tx.returnRequest.count({
+          where: { orderId: existing.orderId, status: "COMPLETED", id: { not: existing.id } },
+        });
+        if (alreadyCompleted) throw Errors.conflict("این سفارش قبلاً مرجوع و موجودی آن بازگردانده شده است");
+        const items = await tx.orderItem.findMany({
+          where: { orderId: existing.orderId },
+          select: { variantId: true, quantity: true, productName: true },
+        });
+        restockLines = items.map((item) => ({ variantId: item.variantId, quantity: item.quantity, productName: item.productName }));
+      }
+
+      for (const line of restockLines) {
+        if (!line.variantId || line.quantity <= 0) continue;
         const variant = await tx.productVariant.update({
-          where: { id: item.variantId },
-          data: { stock: { increment: item.quantity } },
+          where: { id: line.variantId },
+          data: { stock: { increment: line.quantity } },
           select: { productId: true },
         });
         touchedProducts.add(variant.productId);
         await tx.inventoryMovement.create({
           data: {
-            variantId: item.variantId, orderId: existing.orderId, quantity: item.quantity,
-            reason: "RETURN", note: "بازگشت کالا", userId: actorId,
+            variantId: line.variantId, orderId: existing.orderId, quantity: line.quantity,
+            reason: "RETURN", note: `بازگشت ${line.productName}`, userId: actorId,
           },
         });
       }
@@ -305,7 +350,10 @@ export async function processReturn(id: string, status: "APPROVED" | "REJECTED" 
     }
     return updated;
   });
-  await audit({ actorId, action: "return.processed", entity: "ReturnRequest", entityId: id, metadata: { status } });
+  await audit({
+    actorId, action: "return.processed", entity: "ReturnRequest", entityId: id,
+    metadata: { status },
+  });
   return result;
 }
 

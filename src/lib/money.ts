@@ -69,13 +69,36 @@ export function calculateCoupon(
   return { discount, valid: true };
 }
 
+export type ShippingMethodKey = "FLAT" | "ALOPEYK" | "PISHTAZ" | "TIPAX" | "POSTAL" | "COURIER" | "PICKUP";
+
+export interface ShippingRates {
+  flat: number;
+  alopeyk: number;
+  pishtaz: number;
+  tipax: number;
+  /** Legacy fields keep old orders understandable. */
+  postal?: number;
+  courier?: number;
+  pickup?: number;
+  freeThreshold: number;
+}
+
 export function shippingCost(
-  settings: { postal: number; courier: number; pickup: number; freeThreshold: number },
-  method: "POSTAL" | "COURIER" | "PICKUP",
+  settings: ShippingRates,
+  method: ShippingMethodKey,
   subtotal: Money,
 ): Money {
   if (subtotal >= settings.freeThreshold) return 0;
-  return method === "POSTAL" ? settings.postal : method === "COURIER" ? settings.courier : settings.pickup;
+  switch (method) {
+    case "FLAT": return settings.flat;
+    case "ALOPEYK": return settings.alopeyk;
+    case "PISHTAZ": return settings.pishtaz;
+    case "TIPAX": return settings.tipax;
+    case "POSTAL": return settings.postal ?? settings.pishtaz;
+    case "COURIER": return settings.courier ?? settings.tipax;
+    case "PICKUP": return 0;
+    default: return settings.pishtaz;
+  }
 }
 
 export function orderTotals(params: {

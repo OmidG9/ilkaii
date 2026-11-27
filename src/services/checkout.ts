@@ -1,9 +1,11 @@
 import { randomBytes } from "node:crypto";
+import type { OrderStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSiteConfig } from "@/config/site";
 import { Errors } from "@/lib/errors";
 import { calculateCoupon, orderTotals, shippingCost, toToman, toDecimalString } from "@/lib/money";
-import { getCartView } from "@/services/cart";
+import { normalizeForSearch } from "@/lib/persian";
+import { getCartView, restoreCartFromOrder } from "@/services/cart";
 import { getPaymentProvider } from "@/services/payment";
 import { recordAnalyticsEvent } from "@/services/analytics";
 import { invalidateCache } from "@/lib/cache";
@@ -15,12 +17,46 @@ export interface CheckoutResult {
   orderNumber: string;
   total: number;
   paymentStatus: "PENDING" | "PAID";
+  orderStatus: OrderStatus;
   redirectUrl?: string;
   message?: string;
 }
 
-function orderNumber() {
-  return `ILK-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`;
+function orderNumber(prefix = "ILK") {
+  const clean = prefix.replace(/[^a-zA-Z0-9]/g, "").slice(0, 8).toUpperCase() || "ILK";
+  return `${clean}-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString("hex").toUpperCase()}`;
+}
+
+/** Rebuild a gateway URL for a payment whose first response may have been lost. */
+export function paymentResumeUrl(provider: string, authority: string | null, orderId: string, total: number): string | undefined {
+  if (!authority) return undefined;
+  if (provider === "MOCK") {
+    return `/api/payments/mock?order=${encodeURIComponent(orderId)}&amount=${total}`;
+  }
+  if (provider === "ZARINPAL") {
+    const sandbox = process.env.ZARINPAL_SANDBOX === "true";
+    return `https://${sandbox ? "sandbox." : "www."}zarinpal.com/pg/StartPay/${encodeURIComponent(authority)}`;
+  }
+  if (provider === "ZIBAL") {
+    return `https://gateway.zibal.ir/start/${encodeURIComponent(authority)}`;
+  }
+  if (provider === "BEHPARDAKHT") {
+    return `/api/payments/mellat/redirect?ref=${encodeURIComponent(authority)}`;
+  }
+  return undefined;
+}
+
+/** Undo coupon consumption when an order is cancelled or its payment fails. */
+async function releaseCoupon(
+  tx: Prisma.TransactionClient,
+  order: { id: string; couponId: string | null },
+) {
+  if (!order.couponId) return;
+  await tx.couponUsage.deleteMany({ where: { orderId: order.id } });
+  await tx.coupon.updateMany({
+    where: { id: order.couponId, usedCount: { gt: 0 } },
+    data: { usedCount: { decrement: 1 } },
+  });
 }
 
 /**
@@ -33,16 +69,40 @@ export async function createCheckout(
   idempotencyKey: string,
   options: { analyticsSessionId?: string | null } = {},
 ): Promise<CheckoutResult> {
-  const existing = await prisma.payment.findUnique({ where: { idempotencyKey } });
+  const existing = await prisma.payment.findUnique({
+    where: { idempotencyKey },
+    include: {
+      order: {
+        select: {
+          id: true, orderNumber: true, totalAmount: true, paymentStatus: true,
+          status: true, userId: true,
+        },
+      },
+    },
+  });
   if (existing) {
-    const order = await prisma.order.findUnique({ where: { id: existing.orderId }, select: { id: true, orderNumber: true, totalAmount: true, paymentStatus: true } });
-    if (order) {
+    const order = existing.order;
+    if (order.userId !== userId) throw Errors.conflict("کلید یکتای پرداخت نامعتبر است");
+
+    if (existing.status === "FAILED" && order.status === "CANCELLED") {
+      // The previous attempt was compensated (gateway error or cancelled
+      // payment). Free the key so the same form can safely retry.
+      await prisma.payment.update({ where: { id: existing.id }, data: { idempotencyKey: null } });
+    } else {
+      const total = toToman(order.totalAmount);
+      const pendingPayment = existing.status === "PENDING" && order.status === "PENDING_PAYMENT";
       return {
         orderId: order.id,
         orderNumber: order.orderNumber,
-        total: toToman(order.totalAmount),
+        total,
         paymentStatus: order.paymentStatus === "PAID" ? "PAID" : "PENDING",
-        message: "سفارش قبلاً ثبت شده است",
+        orderStatus: order.status,
+        // If the first response was lost after the gateway session was created,
+        // send the shopper back to the same payment instead of dead-ending.
+        redirectUrl: pendingPayment
+          ? paymentResumeUrl(existing.provider, existing.authority, order.id, total)
+          : undefined,
+        message: order.paymentStatus === "PAID" ? "این سفارش قبلاً پرداخت شده است" : "سفارش قبلاً ثبت شده است",
       };
     }
   }
@@ -51,7 +111,7 @@ export async function createCheckout(
   if (!cart.id || !cart.items.length) throw Errors.badRequest("سبد خرید خالی است");
 
   const site = await getSiteConfig();
-  const provider = input.paymentMethod === "COD" ? null : getPaymentProvider();
+  const isCod = input.paymentMethod === "COD";
 
   const result = await prisma.$transaction(async (tx) => {
     const freshItems = await tx.cartItem.findMany({
@@ -89,13 +149,18 @@ export async function createCheckout(
       throw Errors.badRequest("آدرس تحویل الزامی است");
     }
 
+    if (input.shippingMethod === "ALOPEYK" && !normalizeForSearch(addressSnapshot.city).includes(normalizeForSearch("تهران"))) {
+      throw Errors.badRequest("الو پیک فقط برای شهر تهران فعال است");
+    }
+
     const lines = freshItems.map((item) => {
       const product = item.product;
       if (product.isDeleted || product.status !== "ACTIVE") throw Errors.conflict(`محصول ${product.name} دیگر موجود نیست`);
-      if (item.variantId && (!item.variant || item.variant.productId !== product.id)) {
-        throw Errors.badRequest("تنوع نامعتبر است");
+      if (!item.variantId || !item.variant) {
+        throw Errors.conflict(`برای ${product.name} سایز و رنگ انتخاب نشده است`);
       }
-      if (item.variant && (!item.variant.isAvailable || item.variant.stock < item.quantity)) {
+      if (item.variant.productId !== product.id) throw Errors.badRequest("تنوع نامعتبر است");
+      if (!item.variant.isAvailable || item.variant.stock < item.quantity) {
         throw Errors.conflict(`موجودی ${product.name} کافی نیست`);
       }
       const base = toToman(product.basePrice);
@@ -118,6 +183,17 @@ export async function createCheckout(
         const used = await tx.couponUsage.count({ where: { couponId: coupon!.id, userId } });
         if (used >= coupon!.perUserLimit) throw Errors.badRequest("شما از این کد تخفیف حداکثر استفاده را کردهاید");
       }
+      // Reserve a global usage slot atomically so concurrent checkouts cannot
+      // exceed usageLimit. The increment is rolled back if the order fails.
+      if (coupon!.usageLimit !== null) {
+        const updated = await tx.coupon.updateMany({
+          where: { id: coupon!.id, usedCount: { lt: coupon!.usageLimit } },
+          data: { usedCount: { increment: 1 } },
+        });
+        if (!updated.count) throw Errors.badRequest("ظرفیت کد تخفیف تمام شده است");
+      } else {
+        await tx.coupon.update({ where: { id: coupon!.id }, data: { usedCount: { increment: 1 } } });
+      }
       discount = calculation.discount;
       couponId = coupon!.id;
     }
@@ -125,13 +201,23 @@ export async function createCheckout(
     const ship = shippingCost(site.shipping, input.shippingMethod, subtotal);
     const totals = orderTotals({ subtotal, discount, shipping: ship });
 
+    // COD orders are confirmed immediately (cash is collected on delivery), and
+    // a fully discounted order needs no gateway session at all. Resolve the
+    // gateway only for orders that actually need one.
+    const isFree = !isCod && totals.total === 0;
+    const gateway = !isCod && !isFree ? await getPaymentProvider(input.paymentGateway) : null;
+    const initialStatus: OrderStatus = isCod ? "PROCESSING" : isFree ? "PAID" : "PENDING_PAYMENT";
+    const initialPaymentStatus: "PENDING" | "PAID" = isFree ? "PAID" : "PENDING";
+
     const order = await tx.order.create({
       data: {
-        orderNumber: orderNumber(),
+        orderNumber: orderNumber(site.store.orderPrefix),
         userId,
-        status: "PENDING_PAYMENT",
-        paymentStatus: input.paymentMethod === "COD" ? "PAID" : "PENDING",
+        status: initialStatus,
+        paymentStatus: initialPaymentStatus,
+        paidAt: isFree ? new Date() : null,
         paymentMethod: input.paymentMethod,
+        paymentGateway: isCod || isFree ? null : input.paymentGateway,
         shippingMethod: input.shippingMethod,
         ...addressSnapshot,
         subtotal: toDecimalString(totals.subtotal),
@@ -153,7 +239,12 @@ export async function createCheckout(
             lineTotal: toDecimalString(line.lineTotal),
           })),
         },
-        statusHistory: { create: { toStatus: "PENDING_PAYMENT", note: "سفارش ایجاد شد" } },
+        statusHistory: {
+          create: {
+            toStatus: initialStatus,
+            note: isCod ? "سفارش ثبت شد؛ پرداخت هنگام تحویل" : isFree ? "سفارش با تخفیف کامل ثبت شد" : "سفارش ایجاد شد",
+          },
+        },
       },
     });
 
@@ -182,15 +273,15 @@ export async function createCheckout(
     await tx.payment.create({
       data: {
         orderId: order.id,
-        provider: input.paymentMethod === "COD" ? "COD" : provider!.name,
+        provider: isCod ? "COD" : isFree ? "FREE" : gateway!.name,
         amount: toDecimalString(totals.total),
-        status: input.paymentMethod === "COD" ? "PAID" : "PENDING",
+        // COD cash is collected on delivery; free orders are settled instantly.
+        status: isFree ? "PAID" : "PENDING",
         idempotencyKey,
       },
     });
 
     if (couponId) {
-      await tx.coupon.update({ where: { id: couponId }, data: { usedCount: { increment: 1 } } });
       await tx.couponUsage.create({ data: { couponId, userId, orderId: order.id } });
     }
     await tx.cartItem.deleteMany({ where: { cartId: cart.id! } });
@@ -199,18 +290,20 @@ export async function createCheckout(
       metadata: { orderNumber: order.orderNumber, total: totals.total },
     });
 
-    return { order, totals };
+    return { order, totals, provider: gateway };
   });
 
   let redirectUrl: string | undefined;
-  if (provider) {
+  const isFree = !isCod && result.totals.total === 0;
+  const provider = result.provider;
+  if (provider && !isFree) {
     const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
     try {
       const initiated = await provider.initiate({
         orderId: result.order.id,
         orderNumber: result.order.orderNumber,
         amountToman: result.totals.total,
-        callbackUrl: `${base}/api/payments/callback?provider=${provider.name}`,
+        callbackUrl: `${base}/api/payments/callback`,
       });
       await prisma.payment.updateMany({
         where: { orderId: result.order.id },
@@ -219,18 +312,18 @@ export async function createCheckout(
       redirectUrl = initiated.redirectUrl;
     } catch (error) {
       // The order transaction already committed; undo the reservation so stock
-      // is not lost when the gateway cannot start a payment session.
+      // and the cart are not lost when the gateway cannot start a payment.
       await compensateInitiation(result.order.id, userId);
       throw error;
     }
   }
 
-  if (input.paymentMethod === "COD" && options.analyticsSessionId) {
+  if ((isCod || isFree) && options.analyticsSessionId) {
     await recordAnalyticsEvent({
       eventId: `purchase-${result.order.id}`,
       name: "purchase",
       path: "/checkout/result",
-      metadata: { revenue: result.totals.total, orderId: result.order.id, orderNumber: result.order.orderNumber, method: "COD" },
+      metadata: { revenue: result.totals.total, orderId: result.order.id, orderNumber: result.order.orderNumber, method: isCod ? "COD" : "FREE" },
     }, {
       sessionId: options.analyticsSessionId,
       customerId: userId,
@@ -244,19 +337,20 @@ export async function createCheckout(
     orderId: result.order.id,
     orderNumber: result.order.orderNumber,
     total: result.totals.total,
-    paymentStatus: input.paymentMethod === "COD" ? "PAID" : "PENDING",
+    paymentStatus: isFree ? "PAID" : "PENDING",
+    orderStatus: result.order.status,
     redirectUrl,
   };
 }
 
 /** Restore a stock reservation when the payment gateway cannot be reached. */
 async function compensateInitiation(orderId: string, actorId: string) {
-  await prisma.$transaction(async (tx) => {
+  const compensated = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({
       where: { id: orderId },
-      select: { status: true, paymentStatus: true },
+      select: { status: true, paymentStatus: true, couponId: true },
     });
-    if (!order || order.paymentStatus !== "PENDING") return;
+    if (!order || order.paymentStatus !== "PENDING") return false;
 
     const items = await tx.orderItem.findMany({
       where: { orderId },
@@ -294,13 +388,19 @@ async function compensateInitiation(orderId: string, actorId: string) {
     });
     await tx.order.update({
       where: { id: orderId },
-      data: { status: "CANCELLED", cancelledAt: new Date() },
+      data: { status: "CANCELLED", paymentStatus: "FAILED", cancelledAt: new Date() },
     });
     await tx.orderStatusHistory.create({
       data: { orderId, fromStatus: order.status, toStatus: "CANCELLED", note: "آغاز پرداخت ناموفق" },
     });
-    await audit({ actorId, action: "payment.initiation_failed", entity: "Order", entityId: orderId });
+    await releaseCoupon(tx, { id: orderId, couponId: order.couponId });
+    await restoreCartFromOrder(actorId, orderId, tx);
+    return true;
   });
+  if (compensated) {
+    await audit({ actorId, action: "payment.initiation_failed", entity: "Order", entityId: orderId });
+    invalidateCache("dashboard:");
+  }
 }
 
 /**
@@ -317,13 +417,40 @@ export async function finalizePayment(params: {
   if (!payment) throw Errors.notFound("پرداخت یافت نشد");
   if (payment.status === "PAID" || payment.status === "REFUNDED") {
     const order = await prisma.order.findUnique({ where: { id: payment.orderId }, select: { id: true, orderNumber: true, status: true } });
-    return { alreadyProcessed: true, order };
-  }
-  if (payment.status === "FAILED" && params.success) {
-    throw Errors.conflict("این پرداخت قبلاً ناموفق بوده است");
+    return {
+      alreadyProcessed: true,
+      order,
+      requiresReview: payment.status === "REFUNDED" || order?.status === "CANCELLED" || order?.status === "REFUNDED",
+    };
   }
 
-  const order = await prisma.$transaction(async (tx) => {
+  if (payment.status === "FAILED") {
+    if (!params.success) {
+      const order = await prisma.order.findUnique({ where: { id: payment.orderId }, select: { id: true, orderNumber: true, status: true } });
+      return { alreadyProcessed: true, order, requiresReview: false };
+    }
+    // The gateway reports money captured after our order was already cancelled
+    // (manual cancel, timeout or a transient earlier verification error). Never
+    // discard that: record it and surface it for manual reconciliation/refund.
+    const order = await prisma.order.findUnique({ where: { id: payment.orderId } });
+    if (!order) throw Errors.notFound("سفارش یافت نشد");
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: "PAID",
+        reference: params.reference ?? null,
+        rawResponse: params.rawResponse ? JSON.stringify(params.rawResponse) : null,
+        failureReason: null,
+      },
+    });
+    await audit({
+      actorId: order.userId, action: "payment.confirmed_after_cancellation", entity: "Order",
+      entityId: order.id, severity: "critical", metadata: { reference: params.reference },
+    });
+    return { alreadyProcessed: false, order, requiresReview: true };
+  }
+
+  const outcome = await prisma.$transaction(async (tx) => {
     const current = await tx.order.findUnique({ where: { id: payment.orderId } });
     if (!current || current.paymentStatus !== "PENDING") {
       throw Errors.conflict("وضعیت سفارش قابل تغییر نیست");
@@ -365,31 +492,34 @@ export async function finalizePayment(params: {
     await tx.payment.update({ where: { id: payment.id }, data: { status: "FAILED", failureReason: "پرداخت ناموفق یا لغو شد" } });
     const updated = await tx.order.update({
       where: { id: current.id },
-      data: { status: "CANCELLED", cancelledAt: new Date() },
+      data: { status: "CANCELLED", paymentStatus: "FAILED", cancelledAt: new Date() },
     });
     await tx.orderStatusHistory.create({ data: { orderId: current.id, fromStatus: current.status, toStatus: "CANCELLED", note: "پرداخت ناموفق" } });
+    await releaseCoupon(tx, { id: current.id, couponId: current.couponId });
+    // Give the shopper their cart back so they can retry or keep shopping.
+    await restoreCartFromOrder(current.userId, current.id, tx);
     return updated;
   });
 
-  if (params.success && order.analyticsSessionId) {
+  if (params.success && outcome.analyticsSessionId) {
     await recordAnalyticsEvent({
-      eventId: `purchase-${order.id}`,
+      eventId: `purchase-${outcome.id}`,
       name: "purchase",
       path: "/checkout/result",
-      metadata: { revenue: toToman(order.totalAmount), orderId: order.id, orderNumber: order.orderNumber, method: order.paymentMethod },
+      metadata: { revenue: toToman(outcome.totalAmount), orderId: outcome.id, orderNumber: outcome.orderNumber, method: outcome.paymentMethod },
     }, {
-      sessionId: order.analyticsSessionId,
-      customerId: order.userId,
+      sessionId: outcome.analyticsSessionId,
+      customerId: outcome.userId,
       consentGranted: true,
       serverEvent: true,
     });
   }
   invalidateCache("dashboard:");
-  return { alreadyProcessed: false, order };
+  return { alreadyProcessed: false, order: outcome, requiresReview: false };
 }
 
-export async function cancelOrder(orderId: string, actorId: string) {
-  await prisma.$transaction(async (tx) => {
+export async function cancelOrder(orderId: string, actorId: string | null, note?: string) {
+  const cancelled = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId } });
     if (!order) throw Errors.notFound("سفارش یافت نشد");
     if (["DELIVERED", "SHIPPED", "CANCELLED", "REFUNDED"].includes(order.status)) {
@@ -412,7 +542,7 @@ export async function cancelOrder(orderId: string, actorId: string) {
       await tx.inventoryMovement.create({
         data: {
           variantId: item.variantId, orderId, quantity: item.quantity,
-          reason: "CANCELLATION", note: wasPaid ? "لغو سفارش" : "لغو سفارش پرداخت‌نشده", userId: actorId,
+          reason: "CANCELLATION", note: note ?? (wasPaid ? "لغو سفارش" : "لغو سفارش پرداخت‌نشده"), userId: actorId,
         },
       });
     }
@@ -436,9 +566,54 @@ export async function cancelOrder(orderId: string, actorId: string) {
       },
     });
     await tx.orderStatusHistory.create({
-      data: { orderId, fromStatus: order.status, toStatus: "CANCELLED", note: "لغو توسط مدیر", changedById: actorId },
+      data: { orderId, fromStatus: order.status, toStatus: "CANCELLED", note: note ?? "لغو توسط مدیر", changedById: actorId },
     });
-    await audit({ actorId, action: "order.cancelled", entity: "Order", entityId: orderId });
+    // A coupon consumed by a successful payment stays consumed even if the
+    // order is later cancelled/refunded. Failed/unpaid attempts release it.
+    if (!wasPaid) await releaseCoupon(tx, { id: orderId, couponId: order.couponId });
+    return { order, wasPaid };
   });
+
+  await audit({ actorId, action: "order.cancelled", entity: "Order", entityId: orderId, metadata: { note } });
+  // A COD purchase event was recorded at checkout, so cancellation must offset
+  // it. Online orders only emit purchase after a successful payment.
+  const { order, wasPaid } = cancelled;
+  if (order.analyticsSessionId && (wasPaid || order.paymentMethod === "COD")) {
+    await recordAnalyticsEvent({
+      eventId: `refund-cancel-${order.id}`,
+      name: "refund",
+      path: "/admin/orders",
+      metadata: { revenue: -toToman(order.totalAmount), orderId: order.id, orderNumber: order.orderNumber },
+    }, {
+      sessionId: order.analyticsSessionId,
+      customerId: order.userId,
+      consentGranted: true,
+      serverEvent: true,
+    });
+  }
   invalidateCache("dashboard:");
+}
+
+/**
+ * Release stock held by abandoned PENDING_PAYMENT orders. Older than 24h by
+ * default, so a shopper still inside the gateway window is never cancelled.
+ */
+export async function expirePendingOrders(olderThanMinutes = 24 * 60, limit = 100) {
+  const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
+  const stale = await prisma.order.findMany({
+    where: { status: "PENDING_PAYMENT", paymentStatus: "PENDING", createdAt: { lt: cutoff } },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+  let cancelled = 0;
+  for (const order of stale) {
+    try {
+      await cancelOrder(order.id, null, "لغو خودکار سفارش پرداخت‌نشده");
+      cancelled += 1;
+    } catch {
+      // A race with a successful payment is expected; leave the order intact.
+    }
+  }
+  return { scanned: stale.length, cancelled };
 }

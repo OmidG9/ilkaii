@@ -8,6 +8,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
 import { AnalyticsConsentBanner } from "@/components/analytics-consent-banner";
+import { BackToTop } from "@/components/back-to-top";
 
 export default async function StoreLayout({ children }: { children: ReactNode }) {
   const [site, headerMenu, footerMenu, analyticsSettings, store] = await Promise.all([
@@ -39,9 +40,16 @@ export default async function StoreLayout({ children }: { children: ReactNode })
 
   return (
     <div className="flex min-h-screen flex-col">
+      <a
+        href="#main-content"
+        className="sr-only z-[60] rounded-xl bg-primary px-5 py-3 text-sm text-white focus:not-sr-only focus:fixed focus:right-4 focus:top-4"
+      >
+        رفتن به محتوای اصلی
+      </a>
       <Navbar site={site} menu={headerMenu} />
       <main id="main-content" className="flex-1">{children}</main>
       <Footer site={site} menu={footerMenu} />
+      <BackToTop />
       <Suspense fallback={null}>
         <AnalyticsTracker allowed={analyticsSettings.enabled && analyticsAllowed} />
       </Suspense>

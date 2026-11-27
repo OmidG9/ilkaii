@@ -102,7 +102,7 @@ export async function getAdminBadges(permissions: readonly string[]): Promise<Ad
     return { orders: 0, returns: 0 };
   }
   const [orders, returns] = await Promise.all([
-    prisma.order.count({ where: { status: { in: ["PENDING_PAYMENT", "PAID"] } } }),
+    prisma.order.count({ where: { status: { in: ["PENDING_PAYMENT", "PAID", "PROCESSING"] } } }),
     prisma.returnRequest.count({ where: { status: "PENDING" } }),
   ]);
   return { orders, returns };

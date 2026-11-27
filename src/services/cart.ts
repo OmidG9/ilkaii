@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth/session";
 import { CART_COOKIE } from "@/lib/constants";
@@ -99,8 +100,10 @@ export async function getCartView(): Promise<CartView> {
       lineTotal,
       quantity: item.quantity,
       stock: item.variant?.stock ?? 0,
+      // Products are sold through variants (size/color), so an item without a
+      // variant is a legacy/invalid entry and must not reach checkout.
       available: !item.product.isDeleted && item.product.status === "ACTIVE" &&
-        (!item.variant || (item.variant.isAvailable && item.variant.stock >= item.quantity)),
+        Boolean(item.variant) && item.variant!.isAvailable && item.variant!.stock >= item.quantity,
     };
   });
   return { id: cart.id, items, subtotal, itemCount: items.reduce((sum, item) => sum + item.quantity, 0) };
@@ -112,28 +115,28 @@ async function resolveAdd(input: CartAdd) {
     include: { variants: { select: { id: true, stock: true, isAvailable: true } } },
   });
   if (!product) throw Errors.notFound("محصول یافت نشد");
-  if (input.variantId) {
-    const variant = product.variants.find((v) => v.id === input.variantId);
-    if (!variant) throw Errors.badRequest("تنوع انتخاب شده متعلق به این محصول نیست");
-    if (!variant.isAvailable || variant.stock < input.quantity) throw Errors.conflict("موجودی کافی نیست");
-  } else if (product.variants.length > 0) {
-    throw Errors.badRequest("لطفاً سایز و رنگ محصول را انتخاب کنید");
-  }
-  return product;
+  if (!product.variants.length) throw Errors.conflict("این محصول در حال حاضر موجود نیست");
+  if (!input.variantId) throw Errors.badRequest("لطفاً سایز و رنگ محصول را انتخاب کنید");
+  const variant = product.variants.find((v) => v.id === input.variantId);
+  if (!variant) throw Errors.badRequest("تنوع انتخاب شده متعلق به این محصول نیست");
+  if (!variant.isAvailable || variant.stock < input.quantity) throw Errors.conflict("موجودی کافی نیست");
+  return { product, variant };
 }
 
 export async function addToCart(input: CartAdd): Promise<CartView> {
   const s = await scope();
-  await resolveAdd(input);
+  const { variant } = await resolveAdd(input);
   const cart = await ensureCart(s);
   const existing = await prisma.cartItem.findFirst({
     where: { cartId: cart.id, productId: input.productId, variantId: input.variantId ?? null },
     select: { id: true, quantity: true },
   });
   if (existing) {
+    const nextQuantity = existing.quantity + input.quantity;
+    if (nextQuantity > variant.stock) throw Errors.conflict("موجودی کافی نیست");
     await prisma.cartItem.update({
       where: { id: existing.id },
-      data: { quantity: { increment: input.quantity } },
+      data: { quantity: nextQuantity },
     });
   } else {
     await prisma.cartItem.create({
@@ -187,7 +190,14 @@ export async function mergeGuestCart(guestToken: string | null, userId: string) 
   if (!guestToken) return;
   const guest = await prisma.cart.findUnique({
     where: { guestToken },
-    include: { items: { include: { variant: { select: { stock: true, isAvailable: true } } } } },
+    include: {
+      items: {
+        include: {
+          variant: { select: { stock: true, isAvailable: true } },
+          product: { select: { isDeleted: true, status: true } },
+        },
+      },
+    },
   });
   if (!guest || !guest.items.length) return;
 
@@ -196,7 +206,8 @@ export async function mergeGuestCart(guestToken: string | null, userId: string) 
       where: { userId }, update: {}, create: { userId },
     });
     for (const item of guest.items) {
-      const cap = item.variant ? (item.variant.isAvailable ? item.variant.stock : 0) : 20;
+      if (item.product.isDeleted || item.product.status !== "ACTIVE" || !item.variant) continue;
+      const cap = item.variant.isAvailable ? Math.min(20, item.variant.stock) : 0;
       const quantity = Math.min(item.quantity, cap);
       if (quantity <= 0) continue;
       const existing = await tx.cartItem.findFirst({
@@ -216,4 +227,65 @@ export async function mergeGuestCart(guestToken: string | null, userId: string) 
     }
     await tx.cart.delete({ where: { id: guest.id } });
   });
+}
+
+/**
+ * Put a failed/cancelled order's items back into the customer's cart so a
+ * gateway error or cancelled payment never leaves the shopper stranded with an
+ * empty cart. Quantities are capped by live stock and never duplicate rows.
+ */
+export async function restoreCartFromOrder(
+  userId: string,
+  orderId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<number> {
+  const db: Prisma.TransactionClient = tx ?? prisma;
+  const items = await db.orderItem.findMany({
+    where: { orderId, productId: { not: null } },
+    select: { productId: true, variantId: true, quantity: true },
+  });
+  if (!items.length) return 0;
+
+  const cart = await db.cart.upsert({
+    where: { userId },
+    update: {},
+    create: { userId },
+    select: { id: true },
+  });
+
+  let restored = 0;
+  for (const item of items) {
+    if (!item.productId || !item.variantId) continue;
+    const product = await db.product.findFirst({
+      where: { id: item.productId, isDeleted: false, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!product) continue;
+    const variant = await db.productVariant.findFirst({
+      where: { id: item.variantId, productId: product.id, isAvailable: true },
+      select: { stock: true },
+    });
+    if (!variant || variant.stock <= 0) continue;
+
+    const cap = Math.min(20, variant.stock);
+    const quantity = Math.min(item.quantity, cap);
+    if (quantity <= 0) continue;
+
+    const existing = await db.cartItem.findFirst({
+      where: { cartId: cart.id, productId: product.id, variantId: item.variantId },
+      select: { id: true, quantity: true },
+    });
+    if (existing) {
+      await db.cartItem.update({
+        where: { id: existing.id },
+        data: { quantity: Math.min(cap, existing.quantity + quantity) },
+      });
+    } else {
+      await db.cartItem.create({
+        data: { cartId: cart.id, productId: product.id, variantId: item.variantId, quantity },
+      });
+    }
+    restored += 1;
+  }
+  return restored;
 }

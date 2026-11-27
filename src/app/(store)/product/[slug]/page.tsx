@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, RotateCcw, ShieldCheck, Truck } from "lucide-react";
 import { getProductBySlug } from "@/services/catalog";
 import { listProductReviews } from "@/services/account";
 import { getSiteConfig } from "@/config/site";
+import { collectionForCategory } from "@/config/editorial";
 import { ProductGallery } from "@/components/product-gallery";
 import { VariantPicker } from "@/components/variant-picker";
 import { ProductGrid } from "@/components/product-grid";
@@ -54,6 +57,7 @@ export default async function ProductPage({ params }: Props) {
     getSiteConfig(),
   ]);
   const base = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+  const collection = collectionForCategory(product.category.slug);
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -108,6 +112,11 @@ export default async function ProductPage({ params }: Props) {
               {product.discount > 0 ? <Badge tone="danger">{formatNumber(product.discount)}٪ تخفیف</Badge> : null}
             </div>
             <h1 className="text-3xl font-semibold leading-snug sm:text-4xl">{product.name}</h1>
+            {collection ? (
+              <Link href={`/collections/${collection.slug}`} className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-primary/70 hover:text-primary">
+                از کالکشن {collection.title} <ArrowLeft className="h-3 w-3" />
+              </Link>
+            ) : null}
             <p className="mt-2 text-xs text-ink/50">کد محصول: <span dir="ltr">{product.sku}</span></p>
           </div>
 
@@ -115,6 +124,7 @@ export default async function ProductPage({ params }: Props) {
             productId={product.id}
             slug={product.slug}
             price={product.price}
+            wishlistEnabled={site.features.wishlist}
             variants={product.variants.map((variant) => ({
               id: variant.id,
               size: variant.size,
@@ -126,6 +136,20 @@ export default async function ProductPage({ params }: Props) {
           />
 
           {product.shortDescription ? <p className="text-sm leading-7 text-ink/70">{product.shortDescription}</p> : null}
+
+          <div className="grid grid-cols-3 gap-2 border-y border-line py-4">
+            {[
+              { icon: Truck, title: "ارسال سراسری", text: "پست و پیک" },
+              { icon: RotateCcw, title: "۷ روز بازگشت", text: "طبق شرایط" },
+              { icon: ShieldCheck, title: "پرداخت امن", text: "تأیید سرور" },
+            ].map(({ icon: Icon, title, text }) => (
+              <div key={title} className="text-center">
+                <Icon className="mx-auto h-4 w-4 text-primary/60" />
+                <p className="mt-2 text-[10px] font-semibold">{title}</p>
+                <p className="text-[9px] text-ink/40">{text}</p>
+              </div>
+            ))}
+          </div>
 
           <div className="space-y-3 border-t border-line pt-6 text-sm">
             <h2 className="font-semibold">جزئیات محصول</h2>

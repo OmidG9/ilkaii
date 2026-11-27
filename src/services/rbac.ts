@@ -9,7 +9,9 @@ export async function listAdminUsers(query?: string) {
   return prisma.user.findMany({
     where: {
       AND: [
-        { OR: [{ role: { not: "CUSTOMER" } }, { roles: { some: {} } }] },
+        // Every customer gets a CUSTOMER UserRole on OTP signup, so `roles.some`
+        // alone would expose all shoppers on the admin users page.
+        { OR: [{ role: { not: "CUSTOMER" } }, { roles: { some: { role: { code: { not: "CUSTOMER" } } } } }] },
         ...(q ? [{ OR: [{ phone: { contains: q } }, { firstName: { contains: q } }, { lastName: { contains: q } }] }] : []),
       ],
     },

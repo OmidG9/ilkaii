@@ -1,8 +1,8 @@
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpLeft } from "lucide-react";
 import type { ProductCard as ProductCardType } from "@/services/catalog";
 import { Badge, Price } from "@/components/ui/display";
+import { SafeImage } from "@/components/safe-image";
 
 export function ProductCard({ product, priority = false }: { product: ProductCardType; priority?: boolean }) {
   return (
@@ -10,13 +10,14 @@ export function ProductCard({ product, priority = false }: { product: ProductCar
       <Link href={`/product/${product.slug}`} className="block">
         <div className="relative aspect-[3/4] overflow-hidden rounded-luxury border border-line bg-line/30">
           {product.image ? (
-            <Image
+            <SafeImage
               src={product.image}
               alt={product.name}
               fill
               priority={priority}
               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"
+              fallbackLabel={product.name}
             />
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-ink/40">تصویر موجود نیست</div>

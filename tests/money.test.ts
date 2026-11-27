@@ -55,11 +55,15 @@ test("orderTotals clamps discount to subtotal and never goes negative", () => {
 });
 
 test("shippingCost applies free threshold and method price", () => {
-  const settings = { postal: 45000, courier: 85000, pickup: 0, freeThreshold: 1_000_000 };
-  assert.equal(shippingCost(settings, "POSTAL", 500_000), 45000);
-  assert.equal(shippingCost(settings, "COURIER", 500_000), 85000);
+  const settings = { flat: 130_000, alopeyk: 90_000, pishtaz: 45_000, tipax: 85_000, postal: 45_000, courier: 85_000, pickup: 0, freeThreshold: 1_000_000 };
+  assert.equal(shippingCost(settings, "FLAT", 500_000), 130_000);
+  assert.equal(shippingCost(settings, "ALOPEYK", 500_000), 90_000);
+  assert.equal(shippingCost(settings, "PISHTAZ", 500_000), 45_000);
+  assert.equal(shippingCost(settings, "TIPAX", 500_000), 85_000);
+  assert.equal(shippingCost(settings, "POSTAL", 500_000), 45_000);
+  assert.equal(shippingCost(settings, "COURIER", 500_000), 85_000);
   assert.equal(shippingCost(settings, "PICKUP", 500_000), 0);
-  assert.equal(shippingCost(settings, "POSTAL", 1_000_000), 0);
+  assert.equal(shippingCost(settings, "PISHTAZ", 1_000_000), 0);
 });
 
 test("effectivePrice prefers override, then a valid sale price", () => {

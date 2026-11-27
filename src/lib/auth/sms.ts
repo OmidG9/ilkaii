@@ -1,5 +1,6 @@
 import { isProduction } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { getSecret } from "@/lib/secrets";
 
 export interface SmsProvider {
   readonly name: string;
@@ -58,16 +59,18 @@ class HttpSmsProvider implements SmsProvider {
   }
 }
 
-export function getSmsProvider(): SmsProvider {
-  if (isProduction()) {
-    if (process.env.SMS_API_URL && process.env.SMS_API_TOKEN) {
-      return new HttpSmsProvider(process.env.SMS_API_URL, process.env.SMS_API_TOKEN);
-    }
-    // Fail closed: production never falls back to the dev provider.
-    throw new Error("SMS provider is not configured (SMS_API_URL, SMS_API_TOKEN)");
-  }
-  if (process.env.SMS_API_URL && process.env.SMS_API_TOKEN) {
-    return new HttpSmsProvider(process.env.SMS_API_URL, process.env.SMS_API_TOKEN);
-  }
+export async function getSmsProvider(): Promise<SmsProvider> {
+  // Credentials saved in Admin → Settings → Integrations take precedence over
+  // deployment env vars, so operators can rotate them without a restart.
+  const [storedUrl, storedToken] = await Promise.all([
+    getSecret("sms.api_url").catch(() => null),
+    getSecret("sms.api_token").catch(() => null),
+  ]);
+  const url = storedUrl || process.env.SMS_API_URL;
+  const token = storedToken || process.env.SMS_API_TOKEN;
+
+  if (url && token) return new HttpSmsProvider(url, token);
+  // Fail closed: production never falls back to the dev provider.
+  if (isProduction()) throw new Error("SMS provider is not configured (SMS_API_URL, SMS_API_TOKEN)");
   return devProvider;
 }

@@ -1,4 +1,4 @@
-import { listProducts } from "@/services/catalog";
+import { getCatalogFacets, listProducts } from "@/services/catalog";
 import { getCategories } from "@/services/catalog";
 import { ProductFilters } from "@/components/product-filters";
 import { ProductGrid } from "@/components/product-grid";
@@ -8,6 +8,7 @@ import { productQuerySchema } from "@/lib/validation";
 import { normalizeSearchParams } from "@/lib/search-params";
 import type { RawSearchParams } from "@/lib/search-params";
 import { formatNumber } from "@/lib/persian";
+import type { ReactNode } from "react";
 
 export async function ProductListing({
   title,
@@ -17,6 +18,7 @@ export async function ProductListing({
   breadcrumb,
   fixedCategory,
   analyticsCategoryId,
+  header,
 }: {
   title: string;
   subtitle?: string;
@@ -25,6 +27,7 @@ export async function ProductListing({
   breadcrumb?: { label: string; href?: string };
   fixedCategory?: string;
   analyticsCategoryId?: string;
+  header?: ReactNode | ((total: number) => ReactNode);
 }) {
   const raw = normalizeSearchParams(searchParams);
   if (fixedCategory) raw.category = fixedCategory;
@@ -32,7 +35,8 @@ export async function ProductListing({
   const query = parsed.success
     ? parsed.data
     : productQuerySchema.parse({});
-  const [categories, result] = await Promise.all([getCategories(), listProducts(query)]);
+  const [categories, facets, result] = await Promise.all([getCategories(), getCatalogFacets(), listProducts(query)]);
+  const headerContent = typeof header === "function" ? header(result.total) : header;
 
   const initial = {
     q: raw.q,
@@ -51,9 +55,9 @@ export async function ProductListing({
       {fixedCategory ? <TrackEvent name="category_view" properties={{ categoryId: analyticsCategoryId, metadata: { slug: fixedCategory } }} /> : null}
       {raw.size || raw.color || raw.minPrice || raw.maxPrice ? <TrackEvent name="filter_applied" properties={{ categoryId: analyticsCategoryId, metadata: { size: raw.size ?? null, color: raw.color ?? null, minPrice: raw.minPrice ?? null, maxPrice: raw.maxPrice ?? null } }} /> : null}
       {breadcrumb ? <Breadcrumbs items={[breadcrumb]} /> : null}
-      <SectionTitle title={title} subtitle={subtitle} />
+      {headerContent ?? <div className="mb-8"><SectionTitle title={title} subtitle={subtitle} /></div>}
       <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-        <ProductFilters categories={categories} initial={initial} />
+        <ProductFilters categories={categories} initial={initial} lockedCategory={fixedCategory} sizes={facets.sizes} colors={facets.colors} />
         <div>
           <p className="mb-6 text-xs text-ink/55">
             {formatNumber(result.total)} محصول یافت شد

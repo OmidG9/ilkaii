@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductListing } from "@/components/product-listing";
+import { CategoryMasthead } from "@/components/store-headers";
 import { getCategories, getCategoryBySlug } from "@/services/catalog";
 import type { RawSearchParams } from "@/lib/search-params";
 
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       alternates: { canonical: `/category/${category.slug}` },
     };
   } catch {
-    return { title: "دستهبندی یافت نشد", robots: { index: false } };
+    return { title: "دسته‌بندی یافت نشد", robots: { index: false } };
   }
 }
 
@@ -32,7 +33,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     notFound();
   }
   const categories = await getCategories();
-  void categories;
+  const count = categories.find((item) => item.slug === category.slug)?._count.products ?? 0;
+
   return (
     <ProductListing
       title={category.name}
@@ -41,7 +43,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       searchParams={await searchParams}
       fixedCategory={category.slug}
       analyticsCategoryId={category.id}
-      breadcrumb={{ label: category.name }}
+      header={<CategoryMasthead category={category} productCount={count} />}
     />
   );
 }

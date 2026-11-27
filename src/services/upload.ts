@@ -27,7 +27,7 @@ export async function processAndStoreImage(file: File) {
   if (!detected) throw Errors.badRequest("تنها تصاویر JPEG، PNG و WebP مجازاند");
   if (file.type && file.type !== detected) throw Errors.badRequest("نوع اعلامشده تصویر با محتوای آن مطابقت ندارد");
 
-  let pipeline: sharp.Sharp;
+  let pipeline: ReturnType<typeof sharp>;
   try {
     pipeline = sharp(original, { failOn: "error", limitInputPixels: 40_000_000 });
   } catch {

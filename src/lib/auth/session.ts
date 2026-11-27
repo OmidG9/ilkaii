@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "@/lib/db";
@@ -168,16 +168,37 @@ export async function requirePageAnyPermission(...permissions: PermissionKey[]):
   return user;
 }
 
+/** Only same-origin paths are accepted as post-login destinations. */
+export function safeNextPath(value: string | null | undefined): string | undefined {
+  if (!value) return undefined;
+  if (!value.startsWith("/") || value.startsWith("//") || value.startsWith("/\\")) return undefined;
+  if (value.startsWith("/auth/")) return undefined;
+  return value.slice(0, 512);
+}
+
+async function requestPath(): Promise<string | undefined> {
+  try {
+    const requestHeaders = await headers();
+    return safeNextPath(requestHeaders.get("x-pathname"));
+  } catch {
+    return undefined;
+  }
+}
+
+function loginUrl(nextPath: string | undefined) {
+  return nextPath ? `/auth/login?next=${encodeURIComponent(nextPath)}` : "/auth/login";
+}
+
 /** Server Component guard: redirects instead of returning a JSON error. */
-export async function requirePageUser(): Promise<SessionUser> {
+export async function requirePageUser(nextPath?: string): Promise<SessionUser> {
   const user = await getSessionUser();
-  if (!user) redirect("/auth/login");
+  if (!user) redirect(loginUrl(nextPath ?? (await requestPath())));
   return user;
 }
 
 export async function requirePageAdmin(): Promise<SessionUser> {
   const user = await getSessionUser();
-  if (!user) redirect("/auth/login");
+  if (!user) redirect(loginUrl(await requestPath()));
   if (!roleCanAccessAdmin(user.role)) redirect("/");
   return user;
 }

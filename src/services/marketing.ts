@@ -229,8 +229,13 @@ const mockProvider: NotificationProvider = {
 
 async function httpProvider(channel: CampaignChannel): Promise<NotificationProvider> {
   const env = getServerEnv();
-  const url = channel === "SMS" ? env.SMS_API_URL : process.env.EMAIL_API_URL;
-  const token = channel === "SMS" ? (await getSecret("sms.api_token").catch(() => null)) ?? env.SMS_API_TOKEN : await getSecret("email.api_key").catch(() => null);
+  const [storedSmsUrl, storedSmsToken, storedEmailKey] = await Promise.all([
+    channel === "SMS" ? getSecret("sms.api_url").catch(() => null) : Promise.resolve(null),
+    channel === "SMS" ? getSecret("sms.api_token").catch(() => null) : Promise.resolve(null),
+    channel === "EMAIL" ? getSecret("email.api_key").catch(() => null) : Promise.resolve(null),
+  ]);
+  const url = channel === "SMS" ? (storedSmsUrl || env.SMS_API_URL) : process.env.EMAIL_API_URL;
+  const token = channel === "SMS" ? (storedSmsToken || env.SMS_API_TOKEN) : storedEmailKey;
   if (!url || !token) {
     if (isProduction()) throw Errors.unavailable(`سرویس ${channel === "SMS" ? "پیامک" : "ایمیل"} پیکربندی نشده است`);
     return mockProvider;

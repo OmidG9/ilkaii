@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 export const POST = route(async (request: NextRequest) => {
   assertSameOrigin(request);
-  if (!checkRateLimit(`unsubscribe:${clientIp(request)}`, 20, 15 * 60 * 1000).ok) {
+  if (!(await checkRateLimit(`unsubscribe:${clientIp(request)}`, 20, 15 * 60 * 1000)).ok) {
     return ok({ unsubscribed: false }, 202);
   }
   const input = await parseBody(request, newsletterUnsubscribeSchema);
